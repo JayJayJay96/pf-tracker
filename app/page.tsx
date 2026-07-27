@@ -1,3 +1,7 @@
 export default function HomePage() {
-  return <main>Personal Finance Tracker</main>;
+  return (
+    <main>
+      <h1>Personal Finance Tracker</h1>
+    </main>
+  );
 }

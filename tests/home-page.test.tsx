@@ -1,11 +1,12 @@
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import HomePage from '../app/page';
 
 describe('home page', () => {
   it('renders the Personal Finance Tracker heading', () => {
-    const page = HomePage();
+    const page = renderToStaticMarkup(<HomePage />);
 
-    expect(page.props.children).toBe('Personal Finance Tracker');
+    expect(page).toContain('<h1>Personal Finance Tracker</h1>');
   });
 });
