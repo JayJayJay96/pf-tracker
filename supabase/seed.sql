@@ -1,0 +1,2 @@
+-- Intentionally empty: local-only seed hook for future non-production fixtures.
+-- Do not add production data, credentials, or service-role keys here.
