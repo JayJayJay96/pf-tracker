@@ -22,4 +22,13 @@ describe('calendar month periods', () => {
     expect(() => getCalendarMonth('14/02/2025')).toThrow('Invalid ISO date');
     expect(() => getCalendarMonth('2025-02-29')).toThrow('Invalid ISO date');
   });
+
+  it.each([
+    [{ startDate: '2026-04-30', endDate: '2026-04-01' }],
+    [{ startDate: '2026-04-02', endDate: '2026-04-30' }],
+    [{ startDate: '2026-04-01', endDate: '2026-04-29' }],
+    [{ startDate: '2026-04-01', endDate: '2026-05-31' }],
+  ])('rejects a range that is not a complete calendar month: %o', (period) => {
+    expect(() => isDateInPeriod('2026-04-15', period)).toThrow('Invalid calendar period');
+  });
 });

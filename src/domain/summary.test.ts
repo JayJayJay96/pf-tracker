@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateMonthlySummary } from './summary';
+import { calculateMonthlySummary, type MonthlySummaryInput } from './summary';
 
 describe('monthly summary', () => {
   it('excludes pending income and deductions outside the selected calendar month', () => {
@@ -30,5 +30,49 @@ describe('monthly summary', () => {
       investments: [],
       personalSpending: [],
     }).remainingSpendable).toBe(60_000);
+  });
+
+  const invalidEntries: Array<[string, Partial<MonthlySummaryInput>]> = [
+    ['pending income', { income: [{ amount: -1, status: 'pending', transactionDate: '2026-04-01' }] }],
+    ['inactive commitment', { commitments: [{ amount: Number.MAX_SAFE_INTEGER + 1, status: 'inactive', transactionDate: '2026-04-01' }] }],
+    ['unresolved personal spending', { personalSpending: [{ amount: -1, status: 'pending', transactionDate: '2026-04-01' }] }],
+    ['out-of-period savings', { savings: [{ amount: -1, transactionDate: '2026-05-01' }] }],
+  ];
+
+  it.each(invalidEntries)('rejects an invalid amount in %s before selection', (_name, entries) => {
+    expect(() => calculateMonthlySummary({
+      period: { startDate: '2026-04-01', endDate: '2026-04-30' },
+      income: [],
+      commitments: [],
+      savings: [],
+      investments: [],
+      personalSpending: [],
+      ...entries,
+    })).toThrow('Sen amount must be a nonnegative integer');
+  });
+
+  it('rejects an invalid requested period even when every entry list is empty', () => {
+    expect(() => calculateMonthlySummary({
+      period: { startDate: '2026-04-30', endDate: '2026-04-01' },
+      income: [],
+      commitments: [],
+      savings: [],
+      investments: [],
+      personalSpending: [],
+    })).toThrow('Invalid calendar period');
+  });
+
+  it('selects a backdated entry through the summary transaction date', () => {
+    expect(calculateMonthlySummary({
+      period: { startDate: '2026-04-01', endDate: '2026-04-30' },
+      income: [
+        { amount: 12_345, status: 'confirmed', transactionDate: '2026-04-03' },
+        { amount: 99_999, status: 'confirmed', transactionDate: '2026-05-01' },
+      ],
+      commitments: [],
+      savings: [],
+      investments: [],
+      personalSpending: [],
+    }).confirmedIncome).toBe(12_345);
   });
 });

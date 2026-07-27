@@ -31,8 +31,20 @@ function sumInPeriod(entries: DatedAmount[], period: CalendarMonth): Sen {
   );
 }
 
+function validateAmounts(entries: DatedAmount[]): void {
+  entries.forEach((entry) => {
+    addSen(0, entry.amount);
+  });
+}
+
 /** Calculates allocations and remaining spendable for one calendar month. */
 export function calculateMonthlySummary(input: MonthlySummaryInput): MonthlySummary {
+  isDateInPeriod(input.period.startDate, input.period);
+  validateAmounts(input.income);
+  validateAmounts(input.commitments);
+  validateAmounts(input.savings);
+  validateAmounts(input.investments);
+  validateAmounts(input.personalSpending);
   const confirmedIncome = sumInPeriod(input.income.filter((entry) => entry.status === 'confirmed'), input.period);
   const activeCommitments = sumInPeriod(input.commitments.filter((entry) => entry.status === 'active'), input.period);
   const savings = sumInPeriod(input.savings, input.period);

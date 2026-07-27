@@ -39,7 +39,8 @@ export function isDateInPeriod(date: ISODate, period: CalendarMonth): boolean {
   parseISODate(date);
   parseISODate(period.startDate);
   parseISODate(period.endDate);
-  if (period.startDate > period.endDate) {
+  const expectedPeriod = getCalendarMonth(period.startDate);
+  if (period.startDate !== expectedPeriod.startDate || period.endDate !== expectedPeriod.endDate) {
     throw new Error('Invalid calendar period');
   }
   return date >= period.startDate && date <= period.endDate;
