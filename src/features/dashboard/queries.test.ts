@@ -42,6 +42,9 @@ describe('dashboard queries', () => {
       remainingSpendable: 298_750,
       snapshotCount: 4,
       hasSnapshots: true,
+      totalCashOutflow: 1_250,
+      friendReceivables: 0,
+      unresolvedBillCount: 0,
     });
     expect(requests).toEqual([
       ['user-a', '2026-07-01'],
@@ -123,6 +126,54 @@ describe('dashboard queries', () => {
       .resolves.toMatchObject({
         resolvedPersonalSpending: 1_250,
         remainingSpendable: -1_250,
+      });
+  });
+
+  it('counts unresolved cash outflow without personal spending, then resolved portions and receivables', async () => {
+    const repository: DashboardReadRepository = {
+      listEntries: async () => ({ data: [], error: null }),
+      listPersonalExpenses: async () => ({ data: [], error: null }),
+      listSharedBills: async () => ({
+        data: [
+          {
+            id: 'unresolved',
+            transaction_date: '2026-07-02',
+            amount_sen: 1000,
+            shared_status: 'unresolved',
+          },
+          {
+            id: 'resolved',
+            transaction_date: '2026-07-03',
+            amount_sen: 1001,
+            shared_status: 'resolved',
+          },
+        ],
+        error: null,
+      }),
+      listSharedPortions: async () => ({
+        data: [
+          {
+            transaction_id: 'resolved',
+            participant_kind: 'user',
+            amount_sen: 501,
+          },
+          {
+            transaction_id: 'resolved',
+            participant_kind: 'friend',
+            amount_sen: 500,
+          },
+        ],
+        error: null,
+      }),
+    };
+
+    await expect(getDashboardSummary(repository, 'user-a', '2026-07-01'))
+      .resolves.toMatchObject({
+        resolvedPersonalSpending: 501,
+        totalCashOutflow: 2001,
+        friendReceivables: 500,
+        unresolvedBillCount: 1,
+        remainingSpendable: -501,
       });
   });
 });

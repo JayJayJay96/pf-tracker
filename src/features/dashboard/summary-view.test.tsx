@@ -92,4 +92,31 @@ describe('dashboard summary view', () => {
 
     expect(page).toContain('No plan snapshots for this month.');
   });
+
+  it('shows shared cash outflow, friend receivables, and unresolved warning', () => {
+    const page = renderToStaticMarkup(
+      <SummaryView
+        periodStart="2026-07-01"
+        snapshotCount={0}
+        hasSnapshots={false}
+        summary={{
+          confirmedIncome: 0,
+          activeCommitments: 0,
+          savings: 0,
+          investments: 0,
+          resolvedPersonalSpending: 501,
+          remainingSpendable: -501,
+          totalCashOutflow: 2001,
+          friendReceivables: 500,
+          unresolvedBillCount: 1,
+        }}
+      />,
+    );
+
+    expect(page).toContain('Total cash outflow');
+    expect(page).toContain('RM20.01');
+    expect(page).toContain('Friends owe');
+    expect(page).toContain('RM5.00');
+    expect(page).toContain('1 unresolved shared bill');
+  });
 });

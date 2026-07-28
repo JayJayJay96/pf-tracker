@@ -23,9 +23,31 @@ export function createDashboardRepository(
         .from('transactions')
         .select('transaction_date,amount_sen,recorded_at')
         .eq('user_id', userId)
+        .eq('transaction_type', 'personal_expense')
         .gte('transaction_date', period.startDate)
         .lte('transaction_date', period.endDate)
         .order('transaction_date');
+      return { data, error };
+    },
+    async listSharedBills(userId, periodStart) {
+      const period = getCalendarMonth(periodStart);
+      const { data, error } = await client
+        .from('transactions')
+        .select('id,transaction_date,amount_sen,shared_status')
+        .eq('user_id', userId)
+        .eq('transaction_type', 'shared_expense')
+        .gte('transaction_date', period.startDate)
+        .lte('transaction_date', period.endDate);
+      return { data, error };
+    },
+    async listSharedPortions(userId, periodStart) {
+      const period = getCalendarMonth(periodStart);
+      const { data, error } = await client
+        .from('bill_participants')
+        .select('transaction_id,participant_kind,amount_sen,transactions!inner(transaction_date)')
+        .eq('user_id', userId)
+        .gte('transactions.transaction_date', period.startDate)
+        .lte('transactions.transaction_date', period.endDate);
       return { data, error };
     },
   };

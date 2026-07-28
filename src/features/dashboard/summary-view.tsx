@@ -1,10 +1,14 @@
 import { formatRM } from '../../domain/money';
 import type { ISODate } from '../../domain/periods';
 import type { MonthlySummary } from '../../domain/summary';
+import type { DashboardSummary } from './queries';
 
 type SummaryViewProps = {
   periodStart: ISODate;
-  summary: MonthlySummary;
+  summary: MonthlySummary & Partial<Pick<
+    DashboardSummary,
+    'totalCashOutflow' | 'friendReceivables' | 'unresolvedBillCount'
+  >>;
   snapshotCount: number;
   hasSnapshots: boolean;
 };
@@ -31,7 +35,8 @@ export function SummaryView({
     <main>
       <nav aria-label="Primary">
         <a href="/plan">Monthly Plan</a>{' '}
-        <a href="/expenses">Personal Expenses</a>
+        <a href="/expenses">Personal Expenses</a>{' '}
+        <a href="/shared-bills">Shared Bills</a>
       </nav>
       <h1>Personal Finance Tracker</h1>
 
@@ -52,6 +57,13 @@ export function SummaryView({
       {!hasSnapshots ? (
         <p>No plan snapshots for this month. Add templates in Monthly Plan, then generate it.</p>
       ) : <p>{snapshotCount} plan snapshots loaded.</p>}
+      {(summary.unresolvedBillCount ?? 0) > 0 ? (
+        <p role="status">
+          {summary.unresolvedBillCount}{' '}
+          unresolved shared {summary.unresolvedBillCount === 1 ? 'bill' : 'bills'}.
+          Cash outflow is included, but personal spending awaits resolution.
+        </p>
+      ) : null}
 
       <section aria-labelledby="remaining-heading">
         <h3 id="remaining-heading">Remaining spendable</h3>
@@ -81,6 +93,14 @@ export function SummaryView({
         <div>
           <dt>Personal spending</dt>
           <dd>{formatRM(summary.resolvedPersonalSpending)}</dd>
+        </div>
+        <div>
+          <dt>Total cash outflow</dt>
+          <dd>{formatRM(summary.totalCashOutflow ?? 0)}</dd>
+        </div>
+        <div>
+          <dt>Friends owe</dt>
+          <dd>{formatRM(summary.friendReceivables ?? 0)}</dd>
         </div>
       </dl>
     </main>

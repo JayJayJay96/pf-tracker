@@ -1,4 +1,8 @@
-import { getCalendarMonth, type ISODate } from '../../domain/periods';
+import {
+  getCalendarMonth,
+  isDateInPeriod,
+  type ISODate,
+} from '../../domain/periods';
 import {
   calculateMonthlySummary,
   type MonthlySummary,
@@ -13,11 +17,16 @@ type QueryResult = {
 export type DashboardReadRepository = {
   listEntries(userId: string, periodStart: ISODate): Promise<QueryResult>;
   listPersonalExpenses(userId: string, periodStart: ISODate): Promise<QueryResult>;
+  listSharedBills?(userId: string, periodStart: ISODate): Promise<QueryResult>;
+  listSharedPortions?(userId: string, periodStart: ISODate): Promise<QueryResult>;
 };
 
 export type DashboardSummary = MonthlySummary & {
   snapshotCount: number;
   hasSnapshots: boolean;
+  totalCashOutflow: number;
+  friendReceivables: number;
+  unresolvedBillCount: number;
 };
 
 type EntryRow = {
@@ -80,6 +89,50 @@ function mapPersonalExpense(value: unknown): {
   };
 }
 
+function mapSharedBill(value: unknown): {
+  id: string;
+  amountSen: number;
+  transactionDate: ISODate;
+  status: 'unresolved' | 'resolved';
+} {
+  if (typeof value !== 'object' || value === null) throw new Error('Invalid dashboard data');
+  const row = value as Record<string, unknown>;
+  if (
+    typeof row.id !== 'string'
+    || typeof row.transaction_date !== 'string'
+    || !Number.isSafeInteger(row.amount_sen)
+    || (row.amount_sen as number) <= 0
+    || !['unresolved', 'resolved'].includes(String(row.shared_status))
+  ) throw new Error('Invalid dashboard data');
+  getCalendarMonth(row.transaction_date);
+  return {
+    id: row.id,
+    amountSen: row.amount_sen as number,
+    transactionDate: row.transaction_date,
+    status: row.shared_status as 'unresolved' | 'resolved',
+  };
+}
+
+function mapSharedPortion(value: unknown): {
+  transactionId: string;
+  kind: 'user' | 'friend';
+  amountSen: number;
+} {
+  if (typeof value !== 'object' || value === null) throw new Error('Invalid dashboard data');
+  const row = value as Record<string, unknown>;
+  if (
+    typeof row.transaction_id !== 'string'
+    || !['user', 'friend'].includes(String(row.participant_kind))
+    || !Number.isSafeInteger(row.amount_sen)
+    || (row.amount_sen as number) < 0
+  ) throw new Error('Invalid dashboard data');
+  return {
+    transactionId: row.transaction_id,
+    kind: row.participant_kind as 'user' | 'friend',
+    amountSen: row.amount_sen as number,
+  };
+}
+
 export async function getDashboardSummary(
   repository: DashboardReadRepository,
   userId: string,
@@ -90,15 +143,27 @@ export async function getDashboardSummary(
     throw new Error('Period start must be the first day of a calendar month');
   }
 
-  const [entryResult, expenseResult] = await Promise.all([
+  const [entryResult, expenseResult, sharedResult, portionResult] = await Promise.all([
     repository.listEntries(userId, periodStart),
     repository.listPersonalExpenses(userId, periodStart),
+    repository.listSharedBills?.(userId, periodStart)
+      ?? Promise.resolve({ data: [], error: null }),
+    repository.listSharedPortions?.(userId, periodStart)
+      ?? Promise.resolve({ data: [], error: null }),
   ]);
-  const error = entryResult.error ?? expenseResult.error;
+  const error = entryResult.error
+    ?? expenseResult.error
+    ?? sharedResult.error
+    ?? portionResult.error;
   if (error) {
     throw new Error(error.message);
   }
-  if (!entryResult.data || !expenseResult.data) {
+  if (
+    !entryResult.data
+    || !expenseResult.data
+    || !sharedResult.data
+    || !portionResult.data
+  ) {
     throw new Error('Invalid dashboard data');
   }
 
@@ -143,11 +208,45 @@ export async function getDashboardSummary(
         break;
     }
   });
-  input.personalSpending = expenseResult.data.map(mapPersonalExpense);
+  const personalExpenses = expenseResult.data.map(mapPersonalExpense);
+  const sharedBills = sharedResult.data.map(mapSharedBill);
+  const sharedBillsById = new Map(sharedBills.map((bill) => [bill.id, bill]));
+  const portions = portionResult.data.map(mapSharedPortion);
+  const userSharedSpending = portions
+    .filter((portion) => {
+      const bill = sharedBillsById.get(portion.transactionId);
+      return portion.kind === 'user' && bill?.status === 'resolved';
+    })
+    .map((portion) => ({
+      amount: portion.amountSen,
+      transactionDate: sharedBillsById.get(portion.transactionId)!.transactionDate,
+      status: 'resolved' as const,
+    }));
+  input.personalSpending = [...personalExpenses, ...userSharedSpending];
+
+  const personalCashOutflow = personalExpenses
+    .filter((expense) => isDateInPeriod(expense.transactionDate, period))
+    .reduce(
+    (total, expense) => total + expense.amount,
+    0,
+  );
+  const sharedCashOutflow = sharedBills.reduce(
+    (total, bill) => total + bill.amountSen,
+    0,
+  );
+  const friendReceivables = portions.reduce((total, portion) => {
+    const bill = sharedBillsById.get(portion.transactionId);
+    return portion.kind === 'friend' && bill?.status === 'resolved'
+      ? total + portion.amountSen
+      : total;
+  }, 0);
 
   return {
     ...calculateMonthlySummary(input),
     snapshotCount: entryResult.data.length,
     hasSnapshots: entryResult.data.length > 0,
+    totalCashOutflow: personalCashOutflow + sharedCashOutflow,
+    friendReceivables,
+    unresolvedBillCount: sharedBills.filter(({ status }) => status === 'unresolved').length,
   };
 }
