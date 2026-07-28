@@ -27,6 +27,10 @@ describe('dashboard summary view', () => {
     );
 
     expect(page).toContain('July 2026');
+    expect(page).toContain('class="dashboard-shell"');
+    expect(page).toContain('class="dashboard-hero"');
+    expect(page).toContain('class="metric-grid"');
+    expect(page).toContain('class="metric-card"');
     expect(page).toContain('Remaining spendable');
     expect(page).toContain('RM3000.00');
     expect(page).toContain('Confirmed income');

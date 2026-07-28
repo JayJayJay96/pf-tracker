@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { getProtectedRouteRedirect } from '../../src/lib/auth/protected-route';
@@ -24,9 +25,12 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
 
   return (
     <>
-      <header>
+      <header className="app-header">
+        <Link className="app-brand" href="/">
+          PF Tracker
+        </Link>
         <form action={signOut}>
-          <button type="submit">Sign out</button>
+          <button className="ghost-button" type="submit">Sign out</button>
         </form>
       </header>
       {children}
