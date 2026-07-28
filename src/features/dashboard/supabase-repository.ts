@@ -44,7 +44,9 @@ export function createDashboardRepository(
       const period = getCalendarMonth(periodStart);
       const { data, error } = await client
         .from('bill_participants')
-        .select('transaction_id,participant_kind,amount_sen,transactions!inner(transaction_date)')
+        .select(
+          'transaction_id,participant_kind,amount_sen,transactions!inner(transaction_date),friend_portion_settlements(status)',
+        )
         .eq('user_id', userId)
         .gte('transactions.transaction_date', period.startDate)
         .lte('transactions.transaction_date', period.endDate);

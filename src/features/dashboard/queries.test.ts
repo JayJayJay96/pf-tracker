@@ -161,6 +161,13 @@ describe('dashboard queries', () => {
             transaction_id: 'resolved',
             participant_kind: 'friend',
             amount_sen: 500,
+            friend_portion_settlements: [{ status: 'requested' }],
+          },
+          {
+            transaction_id: 'resolved',
+            participant_kind: 'friend',
+            amount_sen: 250,
+            friend_portion_settlements: [{ status: 'paid' }],
           },
         ],
         error: null,

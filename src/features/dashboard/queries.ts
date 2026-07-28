@@ -117,6 +117,7 @@ function mapSharedPortion(value: unknown): {
   transactionId: string;
   kind: 'user' | 'friend';
   amountSen: number;
+  settlementStatus: 'unrequested' | 'requested' | 'paid' | 'forgiven';
 } {
   if (typeof value !== 'object' || value === null) throw new Error('Invalid dashboard data');
   const row = value as Record<string, unknown>;
@@ -126,10 +127,24 @@ function mapSharedPortion(value: unknown): {
     || !Number.isSafeInteger(row.amount_sen)
     || (row.amount_sen as number) < 0
   ) throw new Error('Invalid dashboard data');
+  const settlement = Array.isArray(row.friend_portion_settlements)
+    ? row.friend_portion_settlements[0]
+    : row.friend_portion_settlements;
+  const settlementStatus = settlement && typeof settlement === 'object'
+    ? (settlement as Record<string, unknown>).status
+    : 'unrequested';
+  if (
+    row.participant_kind === 'friend'
+    && !['unrequested', 'requested', 'paid', 'forgiven'].includes(
+      String(settlementStatus),
+    )
+  ) throw new Error('Invalid dashboard data');
   return {
     transactionId: row.transaction_id,
     kind: row.participant_kind as 'user' | 'friend',
     amountSen: row.amount_sen as number,
+    settlementStatus: settlementStatus as
+      'unrequested' | 'requested' | 'paid' | 'forgiven',
   };
 }
 
@@ -236,7 +251,9 @@ export async function getDashboardSummary(
   );
   const friendReceivables = portions.reduce((total, portion) => {
     const bill = sharedBillsById.get(portion.transactionId);
-    return portion.kind === 'friend' && bill?.status === 'resolved'
+    return portion.kind === 'friend'
+      && bill?.status === 'resolved'
+      && ['unrequested', 'requested'].includes(portion.settlementStatus)
       ? total + portion.amountSen
       : total;
   }, 0);

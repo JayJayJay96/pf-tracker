@@ -28,6 +28,7 @@ describe('dashboard summary view', () => {
     expect(page).toContain('RM5000.00');
     expect(page).toContain('Personal spending');
     expect(page).toContain('RM0.00');
+    expect(page).toContain('href="/friends"');
     expect(page).toContain('conservative');
     expect(page).toContain('planned active commitments before they are paid');
   });

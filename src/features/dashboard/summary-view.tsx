@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { formatRM } from '../../domain/money';
 import type { ISODate } from '../../domain/periods';
 import type { MonthlySummary } from '../../domain/summary';
@@ -36,7 +38,8 @@ export function SummaryView({
       <nav aria-label="Primary">
         <a href="/plan">Monthly Plan</a>{' '}
         <a href="/expenses">Personal Expenses</a>{' '}
-        <a href="/shared-bills">Shared Bills</a>
+        <a href="/shared-bills">Shared Bills</a>{' '}
+        <Link href="/friends">Friends</Link>
       </nav>
       <h1>Personal Finance Tracker</h1>
 

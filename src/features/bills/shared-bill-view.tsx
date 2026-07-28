@@ -27,7 +27,8 @@ export function SharedBillView({
     <main>
       <nav aria-label="Primary">
         <Link href="/">Dashboard</Link>{' '}
-        <Link href="/expenses">Personal Expenses</Link>
+        <Link href="/expenses">Personal Expenses</Link>{' '}
+        <Link href="/friends">Friends</Link>
       </nav>
       <h1>Shared Bills</h1>
 
