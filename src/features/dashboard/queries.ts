@@ -14,6 +14,11 @@ export type DashboardReadRepository = {
   listEntries(userId: string, periodStart: ISODate): Promise<QueryResult>;
 };
 
+export type DashboardSummary = MonthlySummary & {
+  snapshotCount: number;
+  hasSnapshots: boolean;
+};
+
 type EntryRow = {
   entryDate: ISODate;
   entryType: 'income' | 'commitment' | 'savings' | 'investment';
@@ -54,7 +59,7 @@ export async function getDashboardSummary(
   repository: DashboardReadRepository,
   userId: string,
   periodStart: ISODate,
-): Promise<MonthlySummary> {
+): Promise<DashboardSummary> {
   const period = getCalendarMonth(periodStart);
   if (period.startDate !== periodStart) {
     throw new Error('Period start must be the first day of a calendar month');
@@ -110,5 +115,9 @@ export async function getDashboardSummary(
     }
   });
 
-  return calculateMonthlySummary(input);
+  return {
+    ...calculateMonthlySummary(input),
+    snapshotCount: result.data.length,
+    hasSnapshots: result.data.length > 0,
+  };
 }

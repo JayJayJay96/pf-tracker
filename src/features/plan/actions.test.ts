@@ -43,7 +43,35 @@ describe('monthly plan template actions', () => {
     });
   });
 
-  it('rejects an invalid type-specific status before writing', async () => {
+  it('derives a valid status when the form type changes but its status is untouched', async () => {
+    let inserted: unknown;
+    const repository: PlanTemplateWriteRepository = {
+      insertTemplate: async (template) => {
+        inserted = template;
+        return { error: null };
+      },
+      updateTemplate: async () => ({ error: null }),
+    };
+
+    await createPlanTemplate(repository, 'user-a', {
+      name: 'Rent',
+      entryType: 'commitment',
+      amount: 'RM1200.00',
+      day: '1',
+      status: 'confirmed',
+      effectiveStart: '2026-07-01',
+      effectiveEnd: '',
+    });
+
+    expect(inserted).toMatchObject({
+      entry_type: 'commitment',
+      status: 'active',
+      expected_day: null,
+      due_day: 1,
+    });
+  });
+
+  it('rejects an unrecognized status instead of silently defaulting it', async () => {
     let writeCount = 0;
     const repository: PlanTemplateWriteRepository = {
       insertTemplate: async () => {
@@ -54,15 +82,41 @@ describe('monthly plan template actions', () => {
     };
 
     await expect(createPlanTemplate(repository, 'user-a', {
-      name: 'Rent',
-      entryType: 'commitment',
-      amount: 'RM1200.00',
-      day: '1',
-      status: 'confirmed',
+      name: 'Tampered salary',
+      entryType: 'income',
+      amount: 'RM5000.00',
+      day: '25',
+      status: 'garbage',
       effectiveStart: '2026-07-01',
       effectiveEnd: '',
     })).rejects.toThrow('Invalid monthly plan template');
     expect(writeCount).toBe(0);
+  });
+
+  it.each([
+    ['income', 'pending'],
+    ['commitment', 'inactive'],
+  ] as const)('preserves an explicit %s %s status', async (entryType, status) => {
+    let inserted: { status?: string } | undefined;
+    const repository: PlanTemplateWriteRepository = {
+      insertTemplate: async (template) => {
+        inserted = template;
+        return { error: null };
+      },
+      updateTemplate: async () => ({ error: null }),
+    };
+
+    await createPlanTemplate(repository, 'user-a', {
+      name: 'Explicit status',
+      entryType,
+      amount: 'RM10.00',
+      day: '1',
+      status,
+      effectiveStart: '2026-07-01',
+      effectiveEnd: '',
+    });
+
+    expect(inserted?.status).toBe(status);
   });
 
   it('updates only the owner template definition used by future generations', async () => {

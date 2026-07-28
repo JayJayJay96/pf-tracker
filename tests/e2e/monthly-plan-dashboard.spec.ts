@@ -25,21 +25,18 @@ test('creates monthly snapshots and preserves a historical spendable view', asyn
     type: 'commitment',
     amount: 'RM1200.00',
     day: '1',
-    status: 'active',
   });
   await addTemplate(page, {
     name: 'Emergency fund',
     type: 'savings',
     amount: 'RM500.00',
     day: '15',
-    status: 'planned',
   });
   await addTemplate(page, {
     name: 'Index fund',
     type: 'investment',
     amount: 'RM300.00',
     day: '20',
-    status: 'planned',
   });
 
   await page.getByRole('button', { name: 'Generate July 2026' }).click();
@@ -85,7 +82,7 @@ async function addTemplate(
     type: 'income' | 'commitment' | 'savings' | 'investment';
     amount: string;
     day: string;
-    status: 'confirmed' | 'active' | 'planned';
+    status?: 'confirmed' | 'active' | 'planned';
   },
 ) {
   const form = page.getByRole('heading', { name: 'Add template' }).locator('..').locator('form');
@@ -93,7 +90,9 @@ async function addTemplate(
   await form.getByLabel('Type').selectOption(input.type);
   await form.getByLabel('Amount').fill(input.amount);
   await form.getByLabel('Expected or due day').fill(input.day);
-  await form.getByLabel('Status').selectOption(input.status);
+  if (input.status) {
+    await form.getByLabel('Status').selectOption(input.status);
+  }
   await form.getByLabel('Effective start').fill('2026-01-01');
   await form.getByRole('button', { name: 'Add template' }).click();
   await expect(page.getByText(input.name, { exact: true }).first()).toBeVisible();

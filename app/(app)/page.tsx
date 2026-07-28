@@ -49,6 +49,11 @@ export default async function HomePage({ searchParams }: HomePageProps = {}) {
   );
 
   return (
-    <SummaryView periodStart={periodStart} summary={summary} />
+    <SummaryView
+      periodStart={periodStart}
+      summary={summary}
+      snapshotCount={summary.snapshotCount}
+      hasSnapshots={summary.hasSnapshots}
+    />
   );
 }

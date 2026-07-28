@@ -8,6 +8,8 @@ describe('dashboard summary view', () => {
     const page = renderToStaticMarkup(
       <SummaryView
         periodStart="2026-07-01"
+        snapshotCount={4}
+        hasSnapshots
         summary={{
           confirmedIncome: 500_000,
           activeCommitments: 120_000,
@@ -34,6 +36,8 @@ describe('dashboard summary view', () => {
     const page = renderToStaticMarkup(
       <SummaryView
         periodStart="2026-07-01"
+        snapshotCount={2}
+        hasSnapshots
         summary={{
           confirmedIncome: 100,
           activeCommitments: 200,
@@ -46,5 +50,46 @@ describe('dashboard summary view', () => {
     );
 
     expect(page).toContain('-RM1.00');
+  });
+
+  it('does not show an empty state when snapshots total zero after status filtering', () => {
+    const page = renderToStaticMarkup(
+      <SummaryView
+        periodStart="2026-07-01"
+        snapshotCount={2}
+        hasSnapshots
+        summary={{
+          confirmedIncome: 0,
+          activeCommitments: 0,
+          savings: 0,
+          investments: 0,
+          resolvedPersonalSpending: 0,
+          remainingSpendable: 0,
+        }}
+      />,
+    );
+
+    expect(page).not.toContain('No plan snapshots for this month.');
+    expect(page).toContain('2 plan snapshots loaded.');
+  });
+
+  it('shows an empty state only when the selected month has no snapshots', () => {
+    const page = renderToStaticMarkup(
+      <SummaryView
+        periodStart="2026-07-01"
+        snapshotCount={0}
+        hasSnapshots={false}
+        summary={{
+          confirmedIncome: 0,
+          activeCommitments: 0,
+          savings: 0,
+          investments: 0,
+          resolvedPersonalSpending: 0,
+          remainingSpendable: 0,
+        }}
+      />,
+    );
+
+    expect(page).toContain('No plan snapshots for this month.');
   });
 });

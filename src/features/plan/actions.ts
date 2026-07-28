@@ -56,11 +56,30 @@ const STATUS_BY_TYPE: Record<PlanEntryType, Set<PlanEntryStatus>> = {
   investment: new Set(['planned']),
 };
 
+const STATUSES = new Set<PlanEntryStatus>([
+  'pending',
+  'confirmed',
+  'active',
+  'inactive',
+  'planned',
+]);
+
+function defaultStatus(entryType: PlanEntryType): PlanEntryStatus {
+  switch (entryType) {
+    case 'income':
+      return 'confirmed';
+    case 'commitment':
+      return 'active';
+    default:
+      return 'planned';
+  }
+}
+
 function parseTemplateInput(input: PlanTemplateInput): PlanTemplateWriteValues {
   try {
     const name = input.name.trim();
     const entryType = input.entryType as PlanEntryType;
-    const status = input.status as PlanEntryStatus;
+    const requestedStatus = input.status as PlanEntryStatus;
     const day = Number(input.day);
     const effectiveStart = input.effectiveStart as ISODate;
     const effectiveEnd = input.effectiveEnd === '' ? null : input.effectiveEnd as ISODate;
@@ -68,13 +87,17 @@ function parseTemplateInput(input: PlanTemplateInput): PlanTemplateWriteValues {
     if (
       name === ''
       || !ENTRY_TYPES.has(entryType)
-      || !STATUS_BY_TYPE[entryType]?.has(status)
+      || !STATUSES.has(requestedStatus)
       || !Number.isInteger(day)
       || day < 1
       || day > 31
     ) {
       throw new Error();
     }
+
+    const status = STATUS_BY_TYPE[entryType].has(requestedStatus)
+      ? requestedStatus
+      : defaultStatus(entryType);
 
     getCalendarMonth(effectiveStart);
     if (effectiveEnd) {

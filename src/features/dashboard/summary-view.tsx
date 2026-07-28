@@ -5,6 +5,8 @@ import type { MonthlySummary } from '../../domain/summary';
 type SummaryViewProps = {
   periodStart: ISODate;
   summary: MonthlySummary;
+  snapshotCount: number;
+  hasSnapshots: boolean;
 };
 
 function formatSignedRM(amountSen: number): string {
@@ -19,9 +21,12 @@ function monthLabel(periodStart: ISODate): string {
   }).format(new Date(`${periodStart}T00:00:00Z`));
 }
 
-export function SummaryView({ periodStart, summary }: SummaryViewProps) {
-  const isEmpty = Object.values(summary).every((amount) => amount === 0);
-
+export function SummaryView({
+  periodStart,
+  summary,
+  snapshotCount,
+  hasSnapshots,
+}: SummaryViewProps) {
   return (
     <main>
       <nav aria-label="Primary">
@@ -43,9 +48,9 @@ export function SummaryView({ periodStart, summary }: SummaryViewProps) {
       </form>
 
       <h2>{monthLabel(periodStart)}</h2>
-      {isEmpty ? (
+      {!hasSnapshots ? (
         <p>No plan snapshots for this month. Add templates in Monthly Plan, then generate it.</p>
-      ) : null}
+      ) : <p>{snapshotCount} plan snapshots loaded.</p>}
 
       <section aria-labelledby="remaining-heading">
         <h3 id="remaining-heading">Remaining spendable</h3>

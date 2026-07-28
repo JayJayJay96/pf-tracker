@@ -30,6 +30,8 @@ describe('dashboard queries', () => {
       investments: 30_000,
       resolvedPersonalSpending: 0,
       remainingSpendable: 300_000,
+      snapshotCount: 4,
+      hasSnapshots: true,
     });
     expect(requests).toEqual([['user-a', '2026-07-01']]);
   });
@@ -50,6 +52,8 @@ describe('dashboard queries', () => {
         confirmedIncome: 0,
         activeCommitments: 0,
         remainingSpendable: 0,
+        snapshotCount: 2,
+        hasSnapshots: true,
       });
   });
 
@@ -70,6 +74,19 @@ describe('dashboard queries', () => {
         activeCommitments: 120_000,
         savings: 50_000,
         remainingSpendable: -170_000,
+      });
+  });
+
+  it('reports no snapshots independently from a zero-valued summary', async () => {
+    const repository: DashboardReadRepository = {
+      listEntries: async () => ({ data: [], error: null }),
+    };
+
+    await expect(getDashboardSummary(repository, 'user-a', '2026-07-01'))
+      .resolves.toMatchObject({
+        remainingSpendable: 0,
+        snapshotCount: 0,
+        hasSnapshots: false,
       });
   });
 });
