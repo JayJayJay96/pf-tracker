@@ -44,6 +44,7 @@ export function SummaryView({
     <main>
       <nav aria-label="Primary">
         <a href="/plan">Monthly Plan</a>{' '}
+        <Link href="/transactions">Transactions</Link>{' '}
         <a href="/expenses">Personal Expenses</a>{' '}
         <a href="/shared-bills">Shared Bills</a>{' '}
         <Link href="/friends">Friends</Link>{' '}

@@ -55,6 +55,7 @@ export function ReportView({
     <main>
       <nav aria-label="Primary">
         <Link href="/">Dashboard</Link>{' '}
+        <Link href="/transactions">Transactions</Link>{' '}
         <Link href="/expenses">Personal Expenses</Link>{' '}
         <Link href="/shared-bills">Shared Bills</Link>{' '}
         <Link href="/friends">Friends</Link>

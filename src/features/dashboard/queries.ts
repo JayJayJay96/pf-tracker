@@ -19,6 +19,7 @@ export type DashboardReadRepository = {
   listPersonalExpenses(userId: string, periodStart: ISODate): Promise<QueryResult>;
   listSharedBills?(userId: string, periodStart: ISODate): Promise<QueryResult>;
   listSharedPortions?(userId: string, periodStart: ISODate): Promise<QueryResult>;
+  listOutstandingFriendPortions?(userId: string): Promise<QueryResult>;
   listPendingRequests?(userId: string): Promise<QueryResult>;
   listPaidCommitments?(userId: string, periodStart: ISODate): Promise<QueryResult>;
 };
@@ -199,6 +200,27 @@ function mapSharedPortion(value: unknown): {
   };
 }
 
+function mapOutstandingFriendPortion(value: unknown): number {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error('Invalid dashboard data');
+  }
+  const row = value as Record<string, unknown>;
+  const settlement = Array.isArray(row.friend_portion_settlements)
+    ? row.friend_portion_settlements[0]
+    : row.friend_portion_settlements;
+  const status = settlement && typeof settlement === 'object'
+    ? (settlement as Record<string, unknown>).status
+    : undefined;
+  if (
+    !Number.isSafeInteger(row.amount_sen)
+    || (row.amount_sen as number) < 0
+    || !['unrequested', 'requested'].includes(String(status))
+  ) {
+    throw new Error('Invalid dashboard data');
+  }
+  return row.amount_sen as number;
+}
+
 export async function getDashboardSummary(
   repository: DashboardReadRepository,
   userId: string,
@@ -216,6 +238,7 @@ export async function getDashboardSummary(
     expenseResult,
     sharedResult,
     portionResult,
+    outstandingPortionResult,
     requestResult,
     paidCommitmentResult,
   ] = await Promise.all([
@@ -225,6 +248,8 @@ export async function getDashboardSummary(
       ?? Promise.resolve({ data: [], error: null }),
     repository.listSharedPortions?.(userId, periodStart)
       ?? Promise.resolve({ data: [], error: null }),
+    repository.listOutstandingFriendPortions?.(userId)
+      ?? Promise.resolve(undefined),
     repository.listPendingRequests?.(userId)
       ?? Promise.resolve({ data: [], error: null }),
     repository.listPaidCommitments?.(userId, periodStart)
@@ -234,6 +259,7 @@ export async function getDashboardSummary(
     ?? expenseResult.error
     ?? sharedResult.error
     ?? portionResult.error
+    ?? outstandingPortionResult?.error
     ?? requestResult.error
     ?? paidCommitmentResult.error;
   if (error) {
@@ -244,6 +270,7 @@ export async function getDashboardSummary(
     || !expenseResult.data
     || !sharedResult.data
     || !portionResult.data
+    || (outstandingPortionResult !== undefined && !outstandingPortionResult.data)
     || !requestResult.data
     || !paidCommitmentResult.data
   ) {
@@ -299,6 +326,14 @@ export async function getDashboardSummary(
   const sharedBills = sharedResult.data.map(mapSharedBill);
   const sharedBillsById = new Map(sharedBills.map((bill) => [bill.id, bill]));
   const portions = portionResult.data.map(mapSharedPortion);
+  const currentOutstandingFriendPortions = outstandingPortionResult
+    ? outstandingPortionResult.data!.map(mapOutstandingFriendPortion)
+    : portions
+      .filter((portion) => (
+        portion.kind === 'friend'
+        && ['unrequested', 'requested'].includes(portion.settlementStatus)
+      ))
+      .map(({ amountSen }) => amountSen);
   const userSharedSpending = portions
     .filter((portion) => {
       const bill = sharedBillsById.get(portion.transactionId);
@@ -321,14 +356,10 @@ export async function getDashboardSummary(
     (total, bill) => total + bill.amountSen,
     0,
   );
-  const friendReceivables = portions.reduce((total, portion) => {
-    const bill = sharedBillsById.get(portion.transactionId);
-    return portion.kind === 'friend'
-      && bill?.status === 'resolved'
-      && ['unrequested', 'requested'].includes(portion.settlementStatus)
-      ? total + portion.amountSen
-      : total;
-  }, 0);
+  const friendReceivables = currentOutstandingFriendPortions.reduce(
+    (total, amountSen) => total + amountSen,
+    0,
+  );
   const paidOnBehalf = portions.reduce((total, portion) => {
     const bill = sharedBillsById.get(portion.transactionId);
     return portion.kind === 'friend' && bill?.status === 'resolved'

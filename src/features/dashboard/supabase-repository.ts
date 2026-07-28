@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getCalendarMonth } from '../../domain/periods';
 import type { DashboardReadRepository } from './queries';
 
+const pageSize = 1000;
+
 /** Reads dashboard inputs through explicit owner and calendar-period constraints. */
 export function createDashboardRepository(
   client: SupabaseClient,
@@ -51,6 +53,27 @@ export function createDashboardRepository(
         .gte('transactions.transaction_date', period.startDate)
         .lte('transactions.transaction_date', period.endDate);
       return { data, error };
+    },
+    async listOutstandingFriendPortions(userId) {
+      const allPortions: unknown[] = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await client
+          .from('bill_participants')
+          .select(
+            'amount_sen,transactions!inner(shared_status),friend_portion_settlements!inner(status)',
+          )
+          .eq('user_id', userId)
+          .eq('participant_kind', 'friend')
+          .eq('transactions.shared_status', 'resolved')
+          .in('friend_portion_settlements.status', ['unrequested', 'requested'])
+          .order('id')
+          .range(from, from + pageSize - 1);
+        if (error || data === null) return { data, error };
+        allPortions.push(...data);
+        if (data.length < pageSize) {
+          return { data: allPortions, error: null };
+        }
+      }
     },
     async listPendingRequests(userId) {
       const { data, error } = await client

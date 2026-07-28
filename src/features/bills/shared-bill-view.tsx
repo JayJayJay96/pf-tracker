@@ -68,6 +68,7 @@ export function SharedBillView({
     <main>
       <nav aria-label="Primary">
         <Link href="/">Dashboard</Link>{' '}
+        <Link href="/transactions">Transactions</Link>{' '}
         <Link href="/expenses">Personal Expenses</Link>{' '}
         <Link href="/friends">Friends</Link>{' '}
         <Link href="/reports">Reports</Link>
@@ -108,7 +109,7 @@ export function SharedBillView({
         {bills.length === 0 ? <p>No shared bills recorded.</p> : (
           <ul>
             {bills.map((bill) => (
-              <li key={bill.id}>
+              <li key={bill.id} id={`transaction-${bill.id}`}>
                 <strong>{bill.description}</strong>{' '}
                 <span>{formatRM(bill.amountSen)} cash outflow</span>{' '}
                 <time dateTime={bill.transactionDate}>{bill.transactionDate}</time>

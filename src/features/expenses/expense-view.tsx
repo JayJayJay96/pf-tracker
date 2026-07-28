@@ -103,6 +103,7 @@ export function ExpenseView({
     <main>
       <nav aria-label="Primary">
         <Link href="/">Dashboard</Link>{' '}
+        <Link href="/transactions">Transactions</Link>{' '}
         <Link href="/plan">Monthly Plan</Link>{' '}
         <Link href="/reports">Reports</Link>
       </nav>
@@ -183,7 +184,7 @@ export function ExpenseView({
         {expenses.length === 0 ? <p>No personal expenses match these filters.</p> : (
           <ul>
             {expenses.map((expense) => (
-              <li key={expense.id}>
+              <li key={expense.id} id={`transaction-${expense.id}`}>
                 <strong>{expense.description}</strong>{' '}
                 <span>{formatRM(expense.amountSen)}</span>{' '}
                 <time dateTime={expense.transactionDate}>{expense.transactionDate}</time>{' '}

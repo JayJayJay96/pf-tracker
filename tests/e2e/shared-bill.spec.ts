@@ -11,6 +11,21 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   request,
 }) => {
   await signIn(page, request);
+  await page.goto('/expenses');
+  const categoryForm = page.getByRole('heading', { name: 'Expense categories' })
+    .locator('..').locator('form');
+  await categoryForm.getByLabel('New category name').fill('Food');
+  await categoryForm.getByRole('button', { name: 'Add category' }).click();
+  const expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
+    .locator('..').locator('form');
+  await expenseForm.getByLabel('Amount').fill('RM4.25');
+  await expenseForm.getByLabel('Description').fill('Personal snack');
+  await expenseForm.getByLabel('Merchant').fill('Corner Market');
+  await expenseForm.getByLabel('Transaction date').fill('2026-07-04');
+  await expenseForm.getByLabel('Category').selectOption({ label: 'Food' });
+  await expenseForm.getByLabel('Payment method').selectOption('cash');
+  await expenseForm.getByRole('button', { name: 'Save expense' }).click();
+
   await page.goto('/shared-bills');
 
   const friendForm = page.getByRole('heading', { name: 'Friends' })
@@ -33,9 +48,9 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   await expect(bill).toContainText('RM18.00 cash outflow');
 
   await page.goto('/?month=2026-07');
-  await expect(page.getByText('Total cash outflow').locator('..')).toContainText('RM18.00');
+  await expect(page.getByText('Total cash outflow').locator('..')).toContainText('RM22.25');
   await expect(page.getByText('Personal spending', { exact: true }).locator('..'))
-    .toContainText('RM0.00');
+    .toContainText('RM4.25');
   await expect(page.getByRole('status')).toContainText('1 unresolved shared bill');
 
   await page.goto('/shared-bills');
@@ -87,11 +102,37 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   await expect(resolvedBill).toContainText('Bee owes RM3.81');
 
   await page.goto('/?month=2026-07');
-  await expect(page.getByText('Total cash outflow').locator('..')).toContainText('RM18.00');
+  await expect(page.getByText('Total cash outflow').locator('..')).toContainText('RM22.25');
   await expect(page.getByText('Personal spending', { exact: true }).locator('..'))
-    .toContainText('RM6.95');
+    .toContainText('RM11.20');
   await expect(page.getByText('Friends owe').locator('..')).toContainText('RM11.05');
   await expect(page.getByRole('status')).toHaveCount(0);
+
+  await page.goto('/transactions');
+  const history = page.getByRole('heading', { name: 'Unified history' }).locator('..');
+  await expect(history.getByText('Personal snack')).toBeVisible();
+  await expect(history.getByText('Shared lunch')).toBeVisible();
+
+  await page.getByLabel('Transaction type').selectOption('personal');
+  await page.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(history.getByText('Personal snack')).toBeVisible();
+  await expect(history.getByText('Shared lunch')).toHaveCount(0);
+
+  await page.getByLabel('Transaction type').selectOption('shared');
+  await page.getByLabel('Shared state').selectOption('resolved');
+  await page.locator('select[name="friendId"]').selectOption({ label: 'Alex' });
+  await page.getByLabel('Payment-request status').selectOption('unrequested');
+  await page.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(history.getByText('Shared lunch')).toBeVisible();
+  await expect(history.getByText('Personal snack')).toHaveCount(0);
+  await history.getByText('Shared lunch').click();
+  await expect(history).toContainText('Resolved shared allocations are locked');
+  await expect(history.getByRole('link', { name: 'View locked shared bill' }))
+    .toHaveAttribute('href', /\/shared-bills#transaction-/);
+
+  await page.goto('/?month=2026-08');
+  await expect(page.getByRole('heading', { name: 'August 2026' })).toBeVisible();
+  await expect(page.getByText('Friends owe').locator('..')).toContainText('RM11.05');
 });
 
 async function signIn(page: Page, request: APIRequestContext) {

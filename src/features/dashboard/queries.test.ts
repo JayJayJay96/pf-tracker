@@ -211,6 +211,42 @@ describe('dashboard queries', () => {
       });
   });
 
+  it('carries current outstanding friend portions into later selected months', async () => {
+    const calls: string[] = [];
+    const repository = {
+      listEntries: async () => ({ data: [], error: null }),
+      listPersonalExpenses: async () => ({ data: [], error: null }),
+      listSharedBills: async () => ({ data: [], error: null }),
+      listSharedPortions: async () => ({ data: [], error: null }),
+      listOutstandingFriendPortions: async (userId: string) => {
+        calls.push(userId);
+        return {
+          data: [
+            {
+              amount_sen: 1550,
+              friend_portion_settlements: [{ status: 'unrequested' }],
+            },
+            {
+              amount_sen: 2450,
+              friend_portion_settlements: [{ status: 'requested' }],
+            },
+          ],
+          error: null,
+        };
+      },
+    };
+
+    await expect(getDashboardSummary(
+      repository,
+      'user-a',
+      '2026-08-01',
+    )).resolves.toMatchObject({
+      friendReceivables: 4000,
+      paidOnBehalf: 0,
+    });
+    expect(calls).toEqual(['user-a']);
+  });
+
   it('attributes a paid commitment actual to its paid month, not its due month', async () => {
     const repository: DashboardReadRepository = {
       listEntries: async () => ({ data: [], error: null }),
