@@ -50,10 +50,11 @@ export function calculateMonthlySummary(input: MonthlySummaryInput): MonthlySumm
   const savings = sumInPeriod(input.savings, input.period);
   const investments = sumInPeriod(input.investments, input.period);
   const resolvedPersonalSpending = sumInPeriod(input.personalSpending.filter((entry) => entry.status === 'resolved'), input.period);
-  const remainingSpendable = subtractSen(
-    subtractSen(subtractSen(subtractSen(confirmedIncome, activeCommitments), savings), investments),
-    resolvedPersonalSpending,
+  const plannedDeductions = addSen(
+    addSen(activeCommitments, savings),
+    addSen(investments, resolvedPersonalSpending),
   );
+  const remainingSpendable = subtractSen(confirmedIncome, plannedDeductions);
 
   return { confirmedIncome, activeCommitments, savings, investments, resolvedPersonalSpending, remainingSpendable };
 }
