@@ -1,6 +1,6 @@
 begin;
 
-select plan(35);
+select plan(38);
 
 insert into auth.users (
   instance_id,
@@ -158,6 +158,31 @@ select lives_ok(
   'User A can insert their own profile'
 );
 
+create temporary table profile_update_clock as
+select updated_at as before_update
+from public.profiles
+where user_id = '11111111-1111-4111-8111-111111111111';
+
+do $$
+begin
+  perform pg_sleep(0.01);
+end;
+$$;
+
+update public.profiles
+set currency = 'RM'
+where user_id = '11111111-1111-4111-8111-111111111111';
+
+select ok(
+  (
+    select profile.updated_at > clock.before_update
+    from public.profiles as profile
+    cross join profile_update_clock as clock
+    where profile.user_id = '11111111-1111-4111-8111-111111111111'
+  ),
+  'updating a profile advances updated_at'
+);
+
 select throws_ok(
   $$
     insert into public.profiles (user_id)
@@ -191,6 +216,30 @@ select results_eq(
   $$,
   $$ values ('User A dining'::text, 2::integer, false) $$,
   'User A can update their own category'
+);
+
+create temporary table category_update_clock as
+select id, updated_at as before_update
+from public.categories
+where user_id = '11111111-1111-4111-8111-111111111111';
+
+do $$
+begin
+  perform pg_sleep(0.01);
+end;
+$$;
+
+update public.categories
+set name = 'User A dining updated'
+where user_id = '11111111-1111-4111-8111-111111111111';
+
+select ok(
+  (
+    select category.updated_at > clock.before_update
+    from public.categories as category
+    join category_update_clock as clock using (id)
+  ),
+  'updating a category advances updated_at'
 );
 
 select results_eq(
@@ -306,6 +355,16 @@ select throws_ok(
   '23514',
   null,
   'categories reject a blank name'
+);
+
+select throws_ok(
+  $$
+    insert into public.profiles (user_id)
+    values ('11111111-1111-4111-8111-111111111111')
+  $$,
+  '23505',
+  null,
+  'a user cannot have more than one profile'
 );
 
 reset role;
