@@ -36,7 +36,9 @@ a {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -54,12 +56,24 @@ button:hover {
   background: rgba(85, 199, 255, 0.18);
 }
 
-input {
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+select,
+textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(4, 11, 18, 0.72);
   color: var(--text);
   padding: 0.65rem 0.8rem;
+}
+
+textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--blue);
 }
 
 .app-header {
@@ -83,6 +97,154 @@ input {
 .ghost-button {
   background: transparent;
   padding: 0.55rem 0.8rem;
+}
+
+.app-content > main:not(.dashboard-shell) {
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 1.5rem;
+}
+
+.app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] a {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #c8d9e6;
+  padding: 0.55rem 0.75rem;
+  text-decoration: none;
+}
+
+.app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] a:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.app-content > main:not(.dashboard-shell) h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.05;
+  margin-bottom: 0.75rem;
+}
+
+.app-content > main:not(.dashboard-shell) h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.85rem;
+}
+
+.app-content > main:not(.dashboard-shell) section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(11, 22, 33, 0.72);
+  margin: 1rem 0;
+  padding: 1rem;
+}
+
+.app-content > main:not(.dashboard-shell) form {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin: 0.8rem 0;
+}
+
+.app-content > main:not(.dashboard-shell) label {
+  color: var(--muted);
+  display: grid;
+  flex: 1 1 190px;
+  font-size: 0.86rem;
+  gap: 0.35rem;
+}
+
+.app-content > main:not(.dashboard-shell) label:has(input[type="checkbox"]),
+.app-content > main:not(.dashboard-shell) label:has(input[type="radio"]) {
+  align-items: center;
+  color: var(--text);
+  display: flex;
+  flex: 1 1 240px;
+  gap: 0.5rem;
+}
+
+.app-content > main:not(.dashboard-shell) input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.app-content > main:not(.dashboard-shell) select,
+.app-content > main:not(.dashboard-shell) textarea {
+  width: 100%;
+}
+
+.app-content > main:not(.dashboard-shell) ul {
+  display: grid;
+  gap: 0.8rem;
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.app-content > main:not(.dashboard-shell) li {
+  border: 1px solid rgba(84, 187, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(4, 11, 18, 0.36);
+  padding: 0.85rem;
+}
+
+.app-content > main:not(.dashboard-shell) dl {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  margin: 1rem 0;
+}
+
+.app-content > main:not(.dashboard-shell) dl > div {
+  border: 1px solid rgba(84, 187, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(4, 11, 18, 0.36);
+  padding: 0.85rem;
+}
+
+.app-content > main:not(.dashboard-shell) dt {
+  color: var(--muted);
+  font-size: 0.84rem;
+  margin-bottom: 0.45rem;
+}
+
+.app-content > main:not(.dashboard-shell) dd {
+  font-weight: 700;
+  margin: 0;
+}
+
+.app-content > main:not(.dashboard-shell) table {
+  border-collapse: collapse;
+  display: block;
+  margin: 1rem 0;
+  overflow-x: auto;
+  width: 100%;
+}
+
+.app-content > main:not(.dashboard-shell) th,
+.app-content > main:not(.dashboard-shell) td {
+  border-bottom: 1px solid rgba(84, 187, 255, 0.16);
+  padding: 0.65rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.app-content > main:not(.dashboard-shell) fieldset {
+  border: 1px solid rgba(84, 187, 255, 0.16);
+  border-radius: 8px;
+  margin: 0.75rem 0;
+  padding: 0.85rem;
+}
+
+.app-content > main:not(.dashboard-shell) details {
+  margin-top: 0.75rem;
+}
+
+.app-content > main:not(.dashboard-shell) summary {
+  color: var(--blue);
+  cursor: pointer;
 }
 
 .dashboard-shell {
@@ -114,7 +276,7 @@ p {
   margin-top: 0;
 }
 
-h1 {
+.dashboard-shell h1 {
   font-size: clamp(2rem, 5vw, 4.25rem);
   line-height: 1;
   margin-bottom: 0.75rem;
@@ -260,6 +422,20 @@ h1 {
   }
 
   .dashboard-nav a {
+    text-align: center;
+  }
+
+  .app-content > main:not(.dashboard-shell) form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] a {
     text-align: center;
   }
 }

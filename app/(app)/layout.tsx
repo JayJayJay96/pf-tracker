@@ -33,7 +33,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
           <button className="ghost-button" type="submit">Sign out</button>
         </form>
       </header>
-      {children}
+      <div className="app-content">{children}</div>
     </>
   );
 }
