@@ -31,6 +31,7 @@ export default async function SharedBillsPage() {
       friends={overview.friends}
       bills={overview.bills}
       defaultTransactionDate={todayInMalaysia()}
+      userId={userId}
       actions={{
         createFriend: createFriendAction,
         createBill: createBillAction,

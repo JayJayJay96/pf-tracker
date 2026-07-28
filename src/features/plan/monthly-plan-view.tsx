@@ -118,7 +118,8 @@ export function MonthlyPlanView({
   return (
     <main>
       <nav aria-label="Primary">
-        <Link href="/">Dashboard</Link>
+        <Link href="/">Dashboard</Link>{' '}
+        <Link href="/reports">Reports</Link>
       </nav>
       <h1>Monthly Plan</h1>
       <p>Template edits apply only to months generated afterward.</p>

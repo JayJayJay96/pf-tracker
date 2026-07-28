@@ -3,6 +3,7 @@
 node_modules/
 .next/
 .env.local
+backups/
 .env
 *.tsbuildinfo
 playwright-report/

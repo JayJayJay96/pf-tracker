@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { formatRM } from '../../domain/money';
+import { DraftForm } from '../forms/draft-form';
 import type { Friend, SharedBill } from './queries';
 import { ResolutionEditor } from './resolution-editor';
 
@@ -10,6 +11,7 @@ type SharedBillViewProps = {
   friends: Friend[];
   bills: SharedBill[];
   defaultTransactionDate: string;
+  userId?: string;
   actions?: {
     createFriend: FormAction;
     createBill: FormAction;
@@ -17,10 +19,49 @@ type SharedBillViewProps = {
   };
 };
 
+function SharedBillFields({ defaultTransactionDate }: { defaultTransactionDate: string }) {
+  return (
+    <>
+      <label>
+        Amount
+        <input
+          name="amount"
+          inputMode="decimal"
+          pattern="RM(?:0|[1-9][0-9]*)\.[0-9]{2}"
+          placeholder="RM0.00"
+          required
+        />
+      </label>
+      <label>
+        Description
+        <input name="description" required />
+      </label>
+      <label>
+        Transaction date
+        <input
+          name="transactionDate"
+          type="date"
+          defaultValue={defaultTransactionDate}
+          required
+        />
+      </label>
+      <label>
+        Payment method
+        <select name="paymentMethod" defaultValue="tng" required>
+          <option value="tng">Touch &apos;n Go</option>
+          <option value="cash">Cash</option>
+        </select>
+      </label>
+      <button type="submit">Save unresolved bill</button>
+    </>
+  );
+}
+
 export function SharedBillView({
   friends,
   bills,
   defaultTransactionDate,
+  userId,
   actions,
 }: SharedBillViewProps) {
   return (
@@ -28,7 +69,8 @@ export function SharedBillView({
       <nav aria-label="Primary">
         <Link href="/">Dashboard</Link>{' '}
         <Link href="/expenses">Personal Expenses</Link>{' '}
-        <Link href="/friends">Friends</Link>
+        <Link href="/friends">Friends</Link>{' '}
+        <Link href="/reports">Reports</Link>
       </nav>
       <h1>Shared Bills</h1>
 
@@ -48,39 +90,17 @@ export function SharedBillView({
 
       <section aria-labelledby="record-bill-heading">
         <h2 id="record-bill-heading">Record shared bill</h2>
-        <form action={actions?.createBill}>
-          <label>
-            Amount
-            <input
-              name="amount"
-              inputMode="decimal"
-              pattern="RM(?:0|[1-9][0-9]*)\.[0-9]{2}"
-              placeholder="RM0.00"
-              required
-            />
-          </label>
-          <label>
-            Description
-            <input name="description" required />
-          </label>
-          <label>
-            Transaction date
-            <input
-              name="transactionDate"
-              type="date"
-              defaultValue={defaultTransactionDate}
-              required
-            />
-          </label>
-          <label>
-            Payment method
-            <select name="paymentMethod" defaultValue="tng" required>
-              <option value="tng">Touch &apos;n Go</option>
-              <option value="cash">Cash</option>
-            </select>
-          </label>
-          <button type="submit">Save unresolved bill</button>
-        </form>
+        {userId ? <DraftForm
+          action={actions?.createBill}
+          userId={userId}
+          formId="shared-bill"
+        >
+          <SharedBillFields defaultTransactionDate={defaultTransactionDate} />
+        </DraftForm> : (
+          <form action={actions?.createBill}>
+            <SharedBillFields defaultTransactionDate={defaultTransactionDate} />
+          </form>
+        )}
       </section>
 
       <section aria-labelledby="shared-bills-heading">

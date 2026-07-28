@@ -56,6 +56,7 @@ export default async function ExpensesPage({ searchParams }: ExpensePageProps) {
       expenses={history.expenses}
       filters={filters}
       defaultTransactionDate={todayInMalaysia()}
+      userId={userId}
       actions={{
         createCategory: createCategoryAction,
         create: createExpenseAction,

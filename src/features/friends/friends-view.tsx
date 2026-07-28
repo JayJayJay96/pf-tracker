@@ -15,7 +15,8 @@ function PrimaryNavigation() {
     <nav aria-label="Primary">
       <Link href="/">Dashboard</Link>{' '}
       <Link href="/shared-bills">Shared Bills</Link>{' '}
-      <Link href="/friends">Friends</Link>
+      <Link href="/friends">Friends</Link>{' '}
+      <Link href="/reports">Reports</Link>
     </nav>
   );
 }

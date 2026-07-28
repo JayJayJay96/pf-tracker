@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { formatRM } from '../../domain/money';
+import { DraftForm } from '../forms/draft-form';
 import type { Expense, ExpenseCategory, ExpenseFilters } from './types';
 
 type FormAction = (formData: FormData) => void | Promise<void>;
@@ -10,6 +11,7 @@ type ExpenseViewProps = {
   expenses: Expense[];
   filters: ExpenseFilters;
   defaultTransactionDate?: string;
+  userId?: string;
   actions?: {
     createCategory: FormAction;
     create: FormAction;
@@ -94,13 +96,15 @@ export function ExpenseView({
   expenses,
   filters,
   defaultTransactionDate,
+  userId,
   actions,
 }: ExpenseViewProps) {
   return (
     <main>
       <nav aria-label="Primary">
         <Link href="/">Dashboard</Link>{' '}
-        <Link href="/plan">Monthly Plan</Link>
+        <Link href="/plan">Monthly Plan</Link>{' '}
+        <Link href="/reports">Reports</Link>
       </nav>
       <h1>Personal Expenses</h1>
 
@@ -120,13 +124,25 @@ export function ExpenseView({
 
       <section aria-labelledby="add-expense-heading">
         <h2 id="add-expense-heading">Add personal expense</h2>
-        <form action={actions?.create}>
+        {userId ? <DraftForm
+          action={actions?.create}
+          userId={userId}
+          formId="personal-expense"
+        >
           <ExpenseFields
             categories={categories}
             defaultTransactionDate={defaultTransactionDate}
           />
           <button type="submit" disabled={categories.length === 0}>Save expense</button>
-        </form>
+        </DraftForm> : (
+          <form action={actions?.create}>
+            <ExpenseFields
+              categories={categories}
+              defaultTransactionDate={defaultTransactionDate}
+            />
+            <button type="submit" disabled={categories.length === 0}>Save expense</button>
+          </form>
+        )}
       </section>
 
       <section aria-labelledby="history-heading">

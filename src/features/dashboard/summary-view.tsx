@@ -39,7 +39,8 @@ export function SummaryView({
         <a href="/plan">Monthly Plan</a>{' '}
         <a href="/expenses">Personal Expenses</a>{' '}
         <a href="/shared-bills">Shared Bills</a>{' '}
-        <Link href="/friends">Friends</Link>
+        <Link href="/friends">Friends</Link>{' '}
+        <Link href="/reports">Reports</Link>
       </nav>
       <h1>Personal Finance Tracker</h1>
 
