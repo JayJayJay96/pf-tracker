@@ -1,0 +1,53 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { generateMonthlyPlan } from './monthly-plan';
+
+describe('monthly plan generation server contract', () => {
+  it('calls the database function with a calendar-period start and maps its row', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ period_start: '2026-07-01', generated_count: 4 }],
+      error: null,
+    });
+
+    await expect(generateMonthlyPlan({ rpc }, {
+      periodStart: '2026-07-01',
+    })).resolves.toEqual({
+      periodStart: '2026-07-01',
+      generatedCount: 4,
+    });
+    expect(rpc).toHaveBeenCalledWith('generate_monthly_plan', {
+      p_period_start: '2026-07-01',
+    });
+  });
+
+  it('rejects a non-period date before calling the database', async () => {
+    const rpc = vi.fn();
+
+    await expect(generateMonthlyPlan({ rpc }, {
+      periodStart: '2026-07-02',
+    })).rejects.toThrow('Period start must be the first day of a calendar month');
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed database output instead of returning an unsafe contract', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ period_start: '2026-07-01', generated_count: -1 }],
+      error: null,
+    });
+
+    await expect(generateMonthlyPlan({ rpc }, {
+      periodStart: '2026-07-01',
+    })).rejects.toThrow('Invalid monthly plan generation result');
+  });
+
+  it('surfaces a database generation error', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'duplicate key value violates unique constraint' },
+    });
+
+    await expect(generateMonthlyPlan({ rpc }, {
+      periodStart: '2026-07-01',
+    })).rejects.toThrow('duplicate key value violates unique constraint');
+  });
+});
