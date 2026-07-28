@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('shows the personal finance tracker home page', async ({ page }) => {
+test('redirects an unauthenticated visitor to sign in', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Personal Finance Tracker' })).toBeVisible();
+  await expect(page).toHaveURL(/\/auth\/sign-in$/);
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 });

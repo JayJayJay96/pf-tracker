@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import HomePage from '../app/page';
+import HomePage from '../app/(app)/page';
 
 describe('home page', () => {
   it('renders the Personal Finance Tracker heading', () => {
