@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation';
 
 import { getCalendarMonth, type ISODate } from '../../src/domain/periods';
 import { getDashboardSummary } from '../../src/features/dashboard/queries';
+import { createDashboardRepository } from '../../src/features/dashboard/supabase-repository';
 import { SummaryView } from '../../src/features/dashboard/summary-view';
-import { createPlanRepository } from '../../src/features/plan/supabase-repository';
 import { getCurrentUserId } from '../../src/lib/auth/current-user';
 import { createClient } from '../../src/lib/supabase/server';
 
@@ -43,7 +43,7 @@ export default async function HomePage({ searchParams }: HomePageProps = {}) {
     redirect('/auth/sign-in');
   }
   const summary = await getDashboardSummary(
-    createPlanRepository(client),
+    createDashboardRepository(client),
     userId,
     periodStart,
   );

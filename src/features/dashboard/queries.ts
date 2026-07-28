@@ -12,6 +12,7 @@ type QueryResult = {
 
 export type DashboardReadRepository = {
   listEntries(userId: string, periodStart: ISODate): Promise<QueryResult>;
+  listPersonalExpenses(userId: string, periodStart: ISODate): Promise<QueryResult>;
 };
 
 export type DashboardSummary = MonthlySummary & {
@@ -55,6 +56,30 @@ function mapEntry(value: unknown): EntryRow {
   };
 }
 
+function mapPersonalExpense(value: unknown): {
+  amount: number;
+  transactionDate: ISODate;
+  status: 'resolved';
+} {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error('Invalid dashboard data');
+  }
+  const row = value as Record<string, unknown>;
+  if (
+    typeof row.transaction_date !== 'string'
+    || !Number.isSafeInteger(row.amount_sen)
+    || (row.amount_sen as number) <= 0
+  ) {
+    throw new Error('Invalid dashboard data');
+  }
+  getCalendarMonth(row.transaction_date);
+  return {
+    amount: row.amount_sen as number,
+    transactionDate: row.transaction_date,
+    status: 'resolved',
+  };
+}
+
 export async function getDashboardSummary(
   repository: DashboardReadRepository,
   userId: string,
@@ -65,11 +90,15 @@ export async function getDashboardSummary(
     throw new Error('Period start must be the first day of a calendar month');
   }
 
-  const result = await repository.listEntries(userId, periodStart);
-  if (result.error) {
-    throw new Error(result.error.message);
+  const [entryResult, expenseResult] = await Promise.all([
+    repository.listEntries(userId, periodStart),
+    repository.listPersonalExpenses(userId, periodStart),
+  ]);
+  const error = entryResult.error ?? expenseResult.error;
+  if (error) {
+    throw new Error(error.message);
   }
-  if (!result.data) {
+  if (!entryResult.data || !expenseResult.data) {
     throw new Error('Invalid dashboard data');
   }
 
@@ -82,7 +111,7 @@ export async function getDashboardSummary(
     personalSpending: [],
   };
 
-  result.data.map(mapEntry).forEach((entry) => {
+  entryResult.data.map(mapEntry).forEach((entry) => {
     const datedAmount = {
       amount: entry.amountSen,
       transactionDate: entry.entryDate,
@@ -114,10 +143,11 @@ export async function getDashboardSummary(
         break;
     }
   });
+  input.personalSpending = expenseResult.data.map(mapPersonalExpense);
 
   return {
     ...calculateMonthlySummary(input),
-    snapshotCount: result.data.length,
-    hasSnapshots: result.data.length > 0,
+    snapshotCount: entryResult.data.length,
+    hasSnapshots: entryResult.data.length > 0,
   };
 }

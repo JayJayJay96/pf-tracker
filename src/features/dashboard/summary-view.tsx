@@ -30,7 +30,8 @@ export function SummaryView({
   return (
     <main>
       <nav aria-label="Primary">
-        <a href="/plan">Monthly Plan</a>
+        <a href="/plan">Monthly Plan</a>{' '}
+        <a href="/expenses">Personal Expenses</a>
       </nav>
       <h1>Personal Finance Tracker</h1>
 

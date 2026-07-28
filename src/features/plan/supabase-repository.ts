@@ -1,13 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import type { DashboardReadRepository } from '../dashboard/queries';
 import type { PlanTemplateWriteRepository } from './actions';
 import type { MonthlyPlanReadRepository } from './queries';
 
 export type PlanRepository =
   & MonthlyPlanReadRepository
-  & PlanTemplateWriteRepository
-  & DashboardReadRepository;
+  & PlanTemplateWriteRepository;
 
 /** Keeps every plan operation constrained to the verified owner at the query boundary. */
 export function createPlanRepository(client: SupabaseClient): PlanRepository {

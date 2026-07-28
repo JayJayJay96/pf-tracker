@@ -21,6 +21,16 @@ describe('dashboard queries', () => {
           error: null,
         };
       },
+      listPersonalExpenses: async (userId, periodStart) => {
+        requests.push([userId, `expenses:${periodStart}`]);
+        return {
+          data: [
+            { transaction_date: '2026-07-03', amount_sen: 1_250 },
+            { transaction_date: '2026-06-30', amount_sen: 900 },
+          ],
+          error: null,
+        };
+      },
     };
 
     await expect(getDashboardSummary(repository, 'user-a', '2026-07-01')).resolves.toEqual({
@@ -28,12 +38,15 @@ describe('dashboard queries', () => {
       activeCommitments: 120_000,
       savings: 50_000,
       investments: 30_000,
-      resolvedPersonalSpending: 0,
-      remainingSpendable: 300_000,
+      resolvedPersonalSpending: 1_250,
+      remainingSpendable: 298_750,
       snapshotCount: 4,
       hasSnapshots: true,
     });
-    expect(requests).toEqual([['user-a', '2026-07-01']]);
+    expect(requests).toEqual([
+      ['user-a', '2026-07-01'],
+      ['user-a', 'expenses:2026-07-01'],
+    ]);
   });
 
   it('excludes pending income and inactive commitments', async () => {
@@ -45,6 +58,7 @@ describe('dashboard queries', () => {
         ],
         error: null,
       }),
+      listPersonalExpenses: async () => ({ data: [], error: null }),
     };
 
     await expect(getDashboardSummary(repository, 'user-a', '2026-07-01'))
@@ -66,6 +80,7 @@ describe('dashboard queries', () => {
         ],
         error: null,
       }),
+      listPersonalExpenses: async () => ({ data: [], error: null }),
     };
 
     await expect(getDashboardSummary(repository, 'user-a', '2026-07-01'))
@@ -80,6 +95,7 @@ describe('dashboard queries', () => {
   it('reports no snapshots independently from a zero-valued summary', async () => {
     const repository: DashboardReadRepository = {
       listEntries: async () => ({ data: [], error: null }),
+      listPersonalExpenses: async () => ({ data: [], error: null }),
     };
 
     await expect(getDashboardSummary(repository, 'user-a', '2026-07-01'))
@@ -87,6 +103,26 @@ describe('dashboard queries', () => {
         remainingSpendable: 0,
         snapshotCount: 0,
         hasSnapshots: false,
+      });
+  });
+
+  it('uses the transaction date rather than recorded time for backdated spending', async () => {
+    const repository: DashboardReadRepository = {
+      listEntries: async () => ({ data: [], error: null }),
+      listPersonalExpenses: async () => ({
+        data: [{
+          transaction_date: '2026-06-30',
+          amount_sen: 1_250,
+          recorded_at: '2026-07-02T10:00:00Z',
+        }],
+        error: null,
+      }),
+    };
+
+    await expect(getDashboardSummary(repository, 'user-a', '2026-06-01'))
+      .resolves.toMatchObject({
+        resolvedPersonalSpending: 1_250,
+        remainingSpendable: -1_250,
       });
   });
 });
