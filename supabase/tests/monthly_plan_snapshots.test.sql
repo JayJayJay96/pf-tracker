@@ -1,6 +1,6 @@
 begin;
 
-select plan(35);
+select plan(46);
 
 insert into auth.users (
   instance_id,
@@ -115,8 +115,27 @@ select is(
       and tablename = 'financial_plan_entries'
       and roles = array['authenticated'::name]
   ),
-  4::bigint,
-  'entries have four authenticated CRUD policies'
+  1::bigint,
+  'entries expose only an authenticated select policy'
+);
+
+select results_eq(
+  $$
+    select proname, prosecdef
+    from pg_proc
+    where pronamespace = 'public'::regnamespace
+      and proname in (
+        'generate_monthly_plan',
+        'update_financial_plan_entry'
+      )
+    order by proname
+  $$,
+  $$
+    values
+      ('generate_monthly_plan'::name, true),
+      ('update_financial_plan_entry'::name, true)
+  $$,
+  'entry mutation is limited to security-definer RPCs'
 );
 
 set local role authenticated;
@@ -351,13 +370,58 @@ select is(
   'a template ended before the period is excluded'
 );
 
-select throws_ok(
+select results_eq(
   $$
-    select * from public.generate_monthly_plan('2026-07-01')
+    select period_start, generated_count
+    from public.generate_monthly_plan('2026-07-01')
   $$,
-  '23505',
-  null,
-  'duplicate period generation is rejected by the snapshot uniqueness guard'
+  $$ values ('2026-07-01'::date, 0::integer) $$,
+  'retrying a generated period is idempotent'
+);
+
+insert into public.financial_plan_templates (
+  id,
+  user_id,
+  name,
+  entry_type,
+  amount_sen,
+  effective_start,
+  effective_end,
+  recurrence,
+  due_day,
+  status
+)
+values (
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa6',
+  '11111111-1111-4111-8111-111111111111',
+  'July-only new fund',
+  'investment',
+  25000,
+  '2026-07-01',
+  '2026-07-31',
+  'monthly',
+  20,
+  'planned'
+);
+
+select results_eq(
+  $$
+    select period_start, generated_count
+    from public.generate_monthly_plan('2026-07-01')
+  $$,
+  $$ values ('2026-07-01'::date, 1::integer) $$,
+  'retrying a period fills a newly added eligible template'
+);
+
+select is(
+  (
+    select count(*)
+    from public.financial_plan_entries
+    where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa6'
+      and period_start = '2026-07-01'
+  ),
+  1::bigint,
+  'incremental generation creates one snapshot for the new template'
 );
 
 select results_eq(
@@ -467,6 +531,28 @@ select throws_ok(
 select throws_ok(
   $$
     insert into public.financial_plan_templates (
+      user_id, name, entry_type, amount_sen, effective_start,
+      recurrence, due_day, status
+    )
+    values (
+      '11111111-1111-4111-8111-111111111111',
+      'Unsafe integer',
+      'savings',
+      9007199254740992,
+      '2026-01-01',
+      'monthly',
+      1,
+      'planned'
+    )
+  $$,
+  '23514',
+  null,
+  'templates reject sen above Number.MAX_SAFE_INTEGER'
+);
+
+select throws_ok(
+  $$
+    insert into public.financial_plan_templates (
       user_id, name, entry_type, amount_sen, effective_start, effective_end,
       recurrence, due_day, status
     )
@@ -555,6 +641,117 @@ select throws_ok(
 
 select throws_ok(
   $$
+    update public.financial_plan_entries
+    set amount_sen = 1
+    where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
+      and period_start = '2026-07-01'
+  $$,
+  '42501',
+  'permission denied for table financial_plan_entries',
+  'owners cannot directly forge immutable snapshot values'
+);
+
+select throws_ok(
+  $$
+    delete from public.financial_plan_entries
+    where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
+      and period_start = '2026-07-01'
+  $$,
+  '42501',
+  'permission denied for table financial_plan_entries',
+  'owners cannot directly delete generated snapshots'
+);
+
+select results_eq(
+  $$
+    select status, actual_amount_sen, paid_date, notes
+    from public.update_financial_plan_entry(
+      (
+        select id
+        from public.financial_plan_entries
+        where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
+          and period_start = '2026-07-01'
+      ),
+      'inactive',
+      115000,
+      '2026-07-02',
+      'Paid by transfer'
+    )
+  $$,
+  $$
+    values (
+      'inactive'::text,
+      115000::bigint,
+      '2026-07-02'::date,
+      'Paid by transfer'::text
+    )
+  $$,
+  'the controlled update path changes only execution fields'
+);
+
+select results_eq(
+  $$
+    select
+      template_id,
+      user_id,
+      period_start,
+      entry_date,
+      name,
+      entry_type,
+      amount_sen,
+      recurrence,
+      expected_day,
+      due_day,
+      template_effective_start,
+      template_effective_end
+    from public.financial_plan_entries
+    where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
+      and period_start = '2026-07-01'
+  $$,
+  $$
+    values (
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'::uuid,
+      '11111111-1111-4111-8111-111111111111'::uuid,
+      '2026-07-01'::date,
+      '2026-07-01'::date,
+      'Rent'::text,
+      'commitment'::text,
+      120000::bigint,
+      'monthly'::text,
+      null::smallint,
+      1::smallint,
+      '2026-01-01'::date,
+      null::date
+    )
+  $$,
+  'controlled updates preserve every original snapshot dimension'
+);
+
+select throws_ok(
+  $$
+    select *
+    from public.update_financial_plan_entry(
+      (
+        select id
+        from public.financial_plan_entries
+        where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
+          and period_start = '2026-07-01'
+      ),
+      'inactive',
+      9007199254740992,
+      '2026-07-02',
+      'Unsafe amount'
+    )
+  $$,
+  '23514',
+  null,
+  'controlled updates reject actual sen above Number.MAX_SAFE_INTEGER'
+);
+
+reset role;
+
+select throws_ok(
+  $$
     insert into public.financial_plan_entries (
       template_id,
       user_id,
@@ -598,6 +795,47 @@ select throws_ok(
       entry_type,
       amount_sen,
       recurrence,
+      due_day,
+      status,
+      template_effective_start
+    )
+    values (
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+      '11111111-1111-4111-8111-111111111111',
+      '2026-10-01',
+      '2026-10-01',
+      'Unsafe snapshot',
+      'commitment',
+      9007199254740992,
+      'monthly',
+      1,
+      'active',
+      '2026-01-01'
+    )
+  $$,
+  '23514',
+  null,
+  'entries reject planned sen above Number.MAX_SAFE_INTEGER'
+);
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11111111-1111-4111-8111-111111111111',
+  true
+);
+
+select throws_ok(
+  $$
+    insert into public.financial_plan_entries (
+      template_id,
+      user_id,
+      period_start,
+      entry_date,
+      name,
+      entry_type,
+      amount_sen,
+      recurrence,
       expected_day,
       status,
       template_effective_start
@@ -616,10 +854,16 @@ select throws_ok(
       '2026-01-01'
     )
   $$,
-  '23503',
-  null,
-  'an entry cannot pair an owned user with another user template'
+  '42501',
+  'permission denied for table financial_plan_entries',
+  'owners cannot directly insert forged snapshots'
 );
+
+create temporary table user_a_entry_for_cross_user_test as
+select id
+from public.financial_plan_entries
+where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+  and period_start = '2026-07-01';
 
 select set_config(
   'request.jwt.claim.sub',
@@ -642,15 +886,31 @@ select is(
   'User B reads only their own generated entry'
 );
 
-select results_eq(
+select throws_ok(
   $$
     update public.financial_plan_entries
     set amount_sen = 1
     where user_id = '11111111-1111-4111-8111-111111111111'
-    returning id
   $$,
-  array[]::uuid[],
-  'User B cannot update User A historical entries'
+  '42501',
+  'permission denied for table financial_plan_entries',
+  'User B has no direct update path for historical entries'
+);
+
+select throws_ok(
+  $$
+    select *
+    from public.update_financial_plan_entry(
+      (select id from user_a_entry_for_cross_user_test),
+      'confirmed',
+      400000,
+      '2026-07-25',
+      'Cross-user attempt'
+    )
+  $$,
+  'P0002',
+  'financial plan entry not found',
+  'the controlled update path does not expose another user entry'
 );
 
 select * from finish();

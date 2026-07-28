@@ -13,10 +13,24 @@ describe('monthly plan generation server contract', () => {
       periodStart: '2026-07-01',
     })).resolves.toEqual({
       periodStart: '2026-07-01',
-      generatedCount: 4,
+      insertedCount: 4,
     });
     expect(rpc).toHaveBeenCalledWith('generate_monthly_plan', {
       p_period_start: '2026-07-01',
+    });
+  });
+
+  it('reports zero inserted snapshots for an idempotent retry', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ period_start: '2026-07-01', generated_count: 0 }],
+      error: null,
+    });
+
+    await expect(generateMonthlyPlan({ rpc }, {
+      periodStart: '2026-07-01',
+    })).resolves.toEqual({
+      periodStart: '2026-07-01',
+      insertedCount: 0,
     });
   });
 
@@ -43,11 +57,11 @@ describe('monthly plan generation server contract', () => {
   it('surfaces a database generation error', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: null,
-      error: { message: 'duplicate key value violates unique constraint' },
+      error: { message: 'authentication required' },
     });
 
     await expect(generateMonthlyPlan({ rpc }, {
       periodStart: '2026-07-01',
-    })).rejects.toThrow('duplicate key value violates unique constraint');
+    })).rejects.toThrow('authentication required');
   });
 });

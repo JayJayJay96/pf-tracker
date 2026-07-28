@@ -6,7 +6,7 @@ export type GenerateMonthlyPlanInput = {
 
 export type GenerateMonthlyPlanOutput = {
   periodStart: ISODate;
-  generatedCount: number;
+  insertedCount: number;
 };
 
 type RpcResult = {
@@ -70,6 +70,6 @@ export async function generateMonthlyPlan(
 
   return {
     periodStart: data[0].period_start,
-    generatedCount: data[0].generated_count,
+    insertedCount: data[0].generated_count,
   };
 }
