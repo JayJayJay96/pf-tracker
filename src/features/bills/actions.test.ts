@@ -213,4 +213,50 @@ describe('shared bill actions', () => {
     })).rejects.toThrow('Confirm the reviewed allocation');
     expect(writes).toBe(0);
   });
+
+  it('uses stable participant ids and friend UUID ordering for an odd cent', async () => {
+    const saved: Array<{
+      participants: Array<{
+        id: string;
+        friend_id: string | null;
+        amount_sen: number;
+      }>;
+    }> = [];
+    const lowerFriend = '13131313-1313-4131-8131-131313131313';
+    const higherFriend = '30303030-3030-4303-8303-303030303030';
+    const input = {
+      billId: '33333333-3333-4333-8333-333333333333',
+      confirmed: true,
+      friendIds: [higherFriend, lowerFriend],
+      items: [{
+        description: 'Odd cent',
+        amount: 'RM0.01',
+        discount: 'RM0.00',
+        participantIds: [higherFriend, lowerFriend],
+      }],
+      adjustments: [],
+    };
+    const oddCentRepository = repository({
+      getUnresolvedBill: async () => ({
+        data: { id: input.billId, amount_sen: 1 },
+        error: null,
+      }),
+      saveResolution: async (resolution) => {
+        saved.push(resolution);
+        return { error: null };
+      },
+    });
+
+    await resolveConfiguredBill(oddCentRepository, 'user-a', input);
+    await resolveConfiguredBill(oddCentRepository, 'user-a', input);
+
+    expect(saved[0].participants.map(({ id }) => id)).toEqual(
+      saved[1].participants.map(({ id }) => id),
+    );
+    expect(saved[0].participants).toEqual([
+      expect.objectContaining({ friend_id: null, amount_sen: 0 }),
+      expect.objectContaining({ id: higherFriend, friend_id: higherFriend, amount_sen: 0 }),
+      expect.objectContaining({ id: lowerFriend, friend_id: lowerFriend, amount_sen: 1 }),
+    ]);
+  });
 });

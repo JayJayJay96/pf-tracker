@@ -210,6 +210,58 @@ describe('allocateBill', () => {
     }))).toThrowError(expect.objectContaining({ code: 'INVALID_BILL' }));
   });
 
+  it('gives an item residual to the lowest friend UUID when the user is not assigned', () => {
+    const lowerFriend = '13131313-1313-4131-8131-131313131313';
+    const higherFriend = '30303030-3030-4303-8303-303030303030';
+    expect(allocateBill(bill({
+      totalSen: 1,
+      participants: [
+        user,
+        { id: higherFriend, kind: 'friend' },
+        { id: lowerFriend, kind: 'friend' },
+      ],
+      items: [{
+        id: 'odd-cent',
+        amountSen: 1,
+        participantIds: [higherFriend, lowerFriend],
+      }],
+    })).portions).toEqual([
+      { participantId: 'user', amountSen: 0 },
+      { participantId: higherFriend, amountSen: 0 },
+      { participantId: lowerFriend, amountSen: 1 },
+    ]);
+  });
+
+  it('uses the same friend UUID ordering for a selected adjustment residual', () => {
+    const lowerFriend = '13131313-1313-4131-8131-131313131313';
+    const higherFriend = '30303030-3030-4303-8303-303030303030';
+    expect(allocateBill(bill({
+      totalSen: 101,
+      participants: [
+        { id: higherFriend, kind: 'friend' },
+        user,
+        { id: lowerFriend, kind: 'friend' },
+      ],
+      items: [
+        { id: 'higher', amountSen: 50, participantIds: [higherFriend] },
+        { id: 'lower', amountSen: 50, participantIds: [lowerFriend] },
+      ],
+      adjustments: [{
+        id: 'service',
+        kind: 'service',
+        amountSen: 1,
+        distribution: {
+          method: 'selected',
+          participantIds: [higherFriend, lowerFriend],
+        },
+      }],
+    })).portions).toEqual([
+      { participantId: higherFriend, amountSen: 50 },
+      { participantId: 'user', amountSen: 0 },
+      { participantId: lowerFriend, amountSen: 51 },
+    ]);
+  });
+
   it('rejects a final total that does not reconcile exactly', () => {
     expect(() => allocateBill(bill({ totalSen: 999 }))).toThrowError(
       expect.objectContaining<Partial<BillAllocationError>>({

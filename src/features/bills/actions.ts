@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { allocateBill } from '../../domain/bills/allocation';
 import type {
@@ -121,6 +121,23 @@ function parseSignedRM(value: string): number {
     : parseRM(normalized);
 }
 
+function deterministicUuid(value: string): string {
+  const hex = createHash('md5').update(value).digest('hex');
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join('-');
+}
+
+function participantUuid(billId: string, participantId: string): string {
+  return participantId === 'user'
+    ? deterministicUuid(`${billId}:user`)
+    : participantId;
+}
+
 export async function createFriend(
   repository: SharedBillWriteRepository,
   userId: string,
@@ -186,8 +203,8 @@ export async function resolveBillEqually(
     throw new Error('Unresolved shared bill not found');
   }
 
-  const userParticipantId = randomUUID();
-  const friendParticipantId = randomUUID();
+  const userParticipantId = participantUuid(billId, 'user');
+  const friendParticipantId = participantUuid(billId, friendId);
   const itemId = randomUUID();
   const allocation = allocateBill({
     totalSen: bill.amount_sen,
@@ -248,8 +265,8 @@ export async function resolveConfiguredBill(
   }
 
   const participantIds = ['user', ...input.friendIds];
-  const participantUuid = new Map(
-    participantIds.map((id) => [id, randomUUID()]),
+  const participantUuids = new Map(
+    participantIds.map((id) => [id, participantUuid(billId, id)]),
   );
   const itemUuid = new Map<number, string>();
   const items: BillItem[] = input.items.map((item, index) => {
@@ -331,7 +348,7 @@ export async function resolveConfiguredBill(
       sort_order: index,
     })),
     participants: participantIds.map((id) => ({
-      id: participantUuid.get(id)!,
+      id: participantUuids.get(id)!,
       participant_kind: id === 'user' ? 'user' : 'friend',
       friend_id: id === 'user' ? null : id,
       amount_sen: portions.get(id) ?? 0,
@@ -339,7 +356,7 @@ export async function resolveConfiguredBill(
     assignments: input.items.flatMap((item, index) => (
       item.participantIds.map((participantId) => ({
         item_id: itemUuid.get(index)!,
-        participant_id: participantUuid.get(participantId) ?? '',
+        participant_id: participantUuids.get(participantId) ?? '',
       }))
     )),
     adjustments: adjustments.map((adjustment, index) => {
@@ -353,14 +370,14 @@ export async function resolveConfiguredBill(
       ) {
         persistedAllocation = {
           participantIds: (adjustment.distribution.participantIds ?? []).map(
-            (id) => participantUuid.get(id) ?? '',
+            (id) => participantUuids.get(id) ?? '',
           ),
         };
       } else if (adjustment.distribution.method === 'manual') {
         persistedAllocation = {
           amountsSen: Object.fromEntries(
             Object.entries(adjustment.distribution.amountsSen).map(([id, amount]) => (
-              [participantUuid.get(id) ?? '', amount]
+              [participantUuids.get(id) ?? '', amount]
             )),
           ),
         };
