@@ -2,13 +2,10 @@
 
 import { type FormEvent, useState } from 'react';
 
+import { signInWithPassword } from '../../../src/lib/auth/password-sign-in';
 import { createClient } from '../../../src/lib/supabase/client';
 
-type SignInFormProps = {
-  nextPath: string;
-};
-
-export function SignInForm({ nextPath }: SignInFormProps) {
+export function SignInForm() {
   const [message, setMessage] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -19,32 +16,21 @@ export function SignInForm({ nextPath }: SignInFormProps) {
 
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email');
+    const password = formData.get('password');
 
-    if (typeof email !== 'string') {
-      setMessage('Enter a valid email address.');
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      setMessage('Enter your email and password.');
       setIsSubmitting(false);
       return;
     }
 
-    const emailRedirectTo = new URL('/auth/confirm', window.location.origin);
-    if (nextPath !== '/') {
-      emailRedirectTo.searchParams.set('next', nextPath);
+    const result = await signInWithPassword(createClient(), email, password);
+    if (result.ok) {
+      window.location.assign(result.redirectTo);
+      return;
     }
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: emailRedirectTo.toString(),
-        shouldCreateUser: true,
-      },
-    });
-
-    setMessage(
-      error
-        ? 'We could not send the sign-in link. Please try again.'
-        : 'Check your email for a sign-in link.',
-    );
+    setMessage(result.message);
     setIsSubmitting(false);
   }
 
@@ -52,8 +38,16 @@ export function SignInForm({ nextPath }: SignInFormProps) {
     <form onSubmit={handleSubmit}>
       <label htmlFor="email">Email</label>
       <input id="email" name="email" type="email" autoComplete="email" required />
+      <label htmlFor="password">Password</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        autoComplete="current-password"
+        required
+      />
       <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Sending…' : 'Send sign-in link'}
+        {isSubmitting ? 'Signing in...' : 'Sign in'}
       </button>
       {message ? <p role="status">{message}</p> : null}
     </form>
