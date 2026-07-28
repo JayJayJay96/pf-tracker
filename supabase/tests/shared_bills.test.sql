@@ -134,13 +134,13 @@ select lives_ok(
         'aaaaaaaa-1111-4111-8111-111111111111',
         '55555555-5555-4555-8555-555555555555',
         '88888888-8888-4888-8888-888888888888',
-        'user', null, 600
+        'user', null, 500
       ),
       (
         'aaaaaaaa-2222-4222-8222-222222222222',
         '55555555-5555-4555-8555-555555555555',
         '88888888-8888-4888-8888-888888888888',
-        'friend', '77777777-7777-4777-8777-777777777777', 400
+        'friend', '77777777-7777-4777-8777-777777777777', 500
       );
 
     insert into public.item_assignments (
@@ -265,13 +265,24 @@ values (
   'Food', 1000
 );
 insert into public.bill_participants (
-  user_id, transaction_id, participant_kind, amount_sen
+  id, user_id, transaction_id, participant_kind, amount_sen
 )
 values (
+  'bbbbbbbb-2222-4222-8222-222222222222',
   '55555555-5555-4555-8555-555555555555',
   'bbbbbbbb-8888-4888-8888-888888888888',
   'user', 999
 );
+insert into public.item_assignments (
+  user_id, transaction_id, item_id, participant_id
+)
+select
+  '55555555-5555-4555-8555-555555555555',
+  'bbbbbbbb-8888-4888-8888-888888888888',
+  id,
+  'bbbbbbbb-2222-4222-8222-222222222222'
+from public.bill_items
+where transaction_id = 'bbbbbbbb-8888-4888-8888-888888888888';
 
 select throws_ok(
   $$ select public.resolve_shared_bill('bbbbbbbb-8888-4888-8888-888888888888') $$,

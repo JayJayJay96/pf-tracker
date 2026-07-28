@@ -146,6 +146,70 @@ describe('allocateBill', () => {
     ]);
   });
 
+  it('supports a signed negative rounding adjustment', () => {
+    expect(allocateBill(bill({
+      totalSen: 99,
+      participants: [user, alex],
+      items: [{
+        id: 'meal',
+        amountSen: 100,
+        participantIds: ['user', 'alex'],
+      }],
+      adjustments: [{
+        id: 'rounding',
+        kind: 'rounding',
+        amountSen: -1,
+        distribution: { method: 'user' },
+      }],
+    })).portions).toEqual([
+      { participantId: 'user', amountSen: 49 },
+      { participantId: 'alex', amountSen: 50 },
+    ]);
+  });
+
+  it.each([
+    {
+      name: 'unknown selected participant',
+      distribution: { method: 'selected' as const, participantIds: ['alex', 'ghost'] },
+    },
+    {
+      name: 'duplicate selected participant',
+      distribution: { method: 'selected' as const, participantIds: ['alex', 'alex'] },
+    },
+    {
+      name: 'unknown equal participant',
+      distribution: { method: 'equal' as const, participantIds: ['ghost'] },
+    },
+  ])('rejects $name', ({ distribution }) => {
+    expect(() => allocateBill(bill({
+      totalSen: 1_100,
+      participants: [user, alex],
+      items: [{
+        id: 'meal',
+        amountSen: 1_000,
+        participantIds: ['user', 'alex'],
+      }],
+      adjustments: [{
+        id: 'service',
+        kind: 'service',
+        amountSen: 100,
+        distribution,
+      }],
+    }))).toThrowError(expect.objectContaining({ code: 'INVALID_BILL' }));
+  });
+
+  it('rejects duplicate bill participant identifiers', () => {
+    expect(() => allocateBill(bill({
+      participants: [user, { ...alex, id: 'user' }],
+    }))).toThrowError(expect.objectContaining({ code: 'INVALID_BILL' }));
+  });
+
+  it('rejects an item assignment to an unknown participant', () => {
+    expect(() => allocateBill(bill({
+      items: [{ id: 'meal', amountSen: 1_000, participantIds: ['ghost'] }],
+    }))).toThrowError(expect.objectContaining({ code: 'INVALID_BILL' }));
+  });
+
   it('rejects a final total that does not reconcile exactly', () => {
     expect(() => allocateBill(bill({ totalSen: 999 }))).toThrowError(
       expect.objectContaining<Partial<BillAllocationError>>({

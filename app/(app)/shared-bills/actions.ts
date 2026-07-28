@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 import {
   createFriend,
   createUnresolvedBill,
-  resolveBillEqually,
+  resolveConfiguredBill,
+  type ConfiguredResolutionInput,
 } from '../../../src/features/bills/actions';
 import { createSharedBillRepository } from '../../../src/features/bills/supabase-repository';
 import { requireCurrentUserId } from '../../../src/lib/auth/current-user';
@@ -46,10 +47,14 @@ export async function createBillAction(formData: FormData): Promise<void> {
 
 export async function resolveBillAction(formData: FormData): Promise<void> {
   const { repository, userId } = await context();
-  await resolveBillEqually(repository, userId, {
-    billId: value(formData, 'billId'),
-    friendId: value(formData, 'friendId'),
-    itemDescription: value(formData, 'itemDescription'),
-  });
+  let configuration: ConfiguredResolutionInput;
+  try {
+    configuration = JSON.parse(
+      value(formData, 'configuration'),
+    ) as ConfiguredResolutionInput;
+  } catch {
+    throw new Error('Invalid shared bill resolution');
+  }
+  await resolveConfiguredBill(repository, userId, configuration);
   revalidateSharedBills();
 }

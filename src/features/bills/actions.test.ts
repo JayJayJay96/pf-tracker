@@ -4,6 +4,7 @@ import {
   createFriend,
   createUnresolvedBill,
   resolveBillEqually,
+  resolveConfiguredBill,
   type SharedBillWriteRepository,
 } from './actions';
 
@@ -18,6 +19,7 @@ function repository(
       error: null,
     }),
     saveEqualResolution: async () => ({ error: null }),
+    saveResolution: async () => ({ error: null }),
     ...overrides,
   };
 }
@@ -95,5 +97,120 @@ describe('shared bill actions', () => {
       friendId: 'friend-1',
       itemDescription: 'Meal',
     })).rejects.toThrow('write failed');
+  });
+
+  it('persists a confirmed multi-person allocation with all adjustment modes', async () => {
+    let saved: unknown;
+    await resolveConfiguredBill(repository({
+      getUnresolvedBill: async () => ({
+        data: { id: 'bill-1', amount_sen: 1_800 },
+        error: null,
+      }),
+      saveResolution: async (resolution) => {
+        saved = resolution;
+        return { error: null };
+      },
+    }), 'user-a', {
+      billId: 'bill-1',
+      confirmed: true,
+      friendIds: ['alex', 'bee'],
+      items: [
+        {
+          description: 'Pizza',
+          amount: 'RM10.01',
+          discount: 'RM0.01',
+          participantIds: ['user', 'alex', 'bee'],
+        },
+        {
+          description: 'Dessert',
+          amount: 'RM6.00',
+          discount: 'RM0.00',
+          participantIds: ['user', 'alex'],
+        },
+      ],
+      adjustments: [
+        {
+          kind: 'discount',
+          amount: 'RM1.00',
+          method: 'proportional',
+          participantIds: [],
+          manualAmounts: {},
+        },
+        {
+          kind: 'discount',
+          amount: 'RM0.25',
+          method: 'manual',
+          participantIds: [],
+          manualAmounts: { user: 'RM0.25', alex: 'RM0.00', bee: 'RM0.00' },
+        },
+        {
+          kind: 'service',
+          amount: 'RM1.60',
+          method: 'proportional',
+          participantIds: [],
+          manualAmounts: {},
+        },
+        {
+          kind: 'tax',
+          amount: 'RM1.66',
+          method: 'proportional',
+          participantIds: [],
+          manualAmounts: {},
+        },
+        {
+          kind: 'rounding',
+          amount: '-RM0.01',
+          method: 'user',
+          participantIds: [],
+          manualAmounts: {},
+        },
+      ],
+    });
+
+    expect(saved).toEqual(expect.objectContaining({
+      transactionId: 'bill-1',
+      items: expect.arrayContaining([
+        expect.objectContaining({ description: 'Pizza', amount_sen: 1001, discount_sen: 1 }),
+        expect.objectContaining({ description: 'Dessert', amount_sen: 600 }),
+      ]),
+      adjustments: expect.arrayContaining([
+        expect.objectContaining({ adjustment_kind: 'rounding', amount_sen: -1 }),
+        expect.objectContaining({ distribution_method: 'manual' }),
+      ]),
+    }));
+    const participants = (saved as {
+      participants: Array<{
+        participant_kind: string;
+        friend_id: string | null;
+        amount_sen: number;
+      }>;
+    }).participants;
+    expect(participants).toEqual([
+      expect.objectContaining({ participant_kind: 'user', amount_sen: 695 }),
+      expect.objectContaining({ friend_id: 'alex', amount_sen: 724 }),
+      expect.objectContaining({ friend_id: 'bee', amount_sen: 381 }),
+    ]);
+  });
+
+  it('rejects an unconfirmed allocation before persistence', async () => {
+    let writes = 0;
+    await expect(resolveConfiguredBill(repository({
+      saveResolution: async () => {
+        writes += 1;
+        return { error: null };
+      },
+    }), 'user-a', {
+      billId: 'bill-1',
+      confirmed: false,
+      friendIds: ['alex'],
+      items: [{
+        description: 'Meal',
+        amount: 'RM10.01',
+        discount: 'RM0.00',
+        participantIds: ['user', 'alex'],
+      }],
+      adjustments: [],
+    })).rejects.toThrow('Confirm the reviewed allocation');
+    expect(writes).toBe(0);
   });
 });

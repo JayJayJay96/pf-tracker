@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { formatRM } from '../../domain/money';
 import type { Friend, SharedBill } from './queries';
+import { ResolutionEditor } from './resolution-editor';
 
 type FormAction = (formData: FormData) => void | Promise<void>;
 
@@ -93,25 +94,12 @@ export function SharedBillView({
                 {bill.status === 'unresolved' ? (
                   <>
                     <p>Unresolved — personal spending is not final yet.</p>
-                    <form action={actions?.resolveBill}>
-                      <input type="hidden" name="billId" value={bill.id} />
-                      <label>
-                        Friend
-                        <select name="friendId" required defaultValue="">
-                          <option value="">Select friend</option>
-                          {friends.map((friend) => (
-                            <option key={friend.id} value={friend.id}>{friend.name}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Item description
-                        <input name="itemDescription" required />
-                      </label>
-                      <button type="submit" disabled={friends.length === 0}>
-                        Resolve equal split
-                      </button>
-                    </form>
+                    <ResolutionEditor
+                      billId={bill.id}
+                      totalSen={bill.amountSen}
+                      friends={friends}
+                      action={actions?.resolveBill}
+                    />
                   </>
                 ) : (
                   <>

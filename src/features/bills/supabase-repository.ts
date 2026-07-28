@@ -62,5 +62,15 @@ export function createSharedBillRepository(
       });
       return { error };
     },
+    async saveResolution(resolution) {
+      const { error } = await client.rpc('save_shared_bill_resolution', {
+        p_transaction_id: resolution.transactionId,
+        p_items: resolution.items,
+        p_participants: resolution.participants,
+        p_assignments: resolution.assignments,
+        p_adjustments: resolution.adjustments,
+      });
+      return { error };
+    },
   };
 }

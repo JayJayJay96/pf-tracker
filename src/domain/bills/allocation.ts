@@ -29,6 +29,13 @@ function requireSen(value: number, label: string): void {
   if (!Number.isSafeInteger(value) || value < 0) invalid(`Invalid ${label}`);
 }
 
+function requireAdjustmentAmount(adjustment: BillAdjustment): void {
+  if (!Number.isSafeInteger(adjustment.amountSen)) invalid('Invalid adjustment amount');
+  if (adjustment.kind !== 'rounding' && adjustment.amountSen < 0) {
+    invalid('Only rounding adjustments may be negative');
+  }
+}
+
 function addSafe(left: number, right: number): number {
   const result = left + right;
   if (!Number.isSafeInteger(result)) invalid('Bill amount exceeds safe integer range');
@@ -60,7 +67,7 @@ function distribute(
   });
   const residualRecipient = participantIds.includes(userId)
     ? userId
-    : participantIds[0];
+    : [...participantIds].sort()[0];
   shares.set(
     residualRecipient,
     addSafe(shares.get(residualRecipient) ?? 0, amountSen - allocated),
@@ -79,20 +86,33 @@ function distributionShares(
   participantIds: string[],
   userId: string,
 ): Map<string, number> {
+  const requireParticipants = (ids: string[]): string[] => {
+    if (
+      ids.length === 0
+      || new Set(ids).size !== ids.length
+      || ids.some((id) => !participantIds.includes(id))
+    ) {
+      invalid('Adjustment participants must be unique bill participants');
+    }
+    return ids;
+  };
+
   switch (distribution.method) {
     case 'proportional':
       return distribute(amountSen, participantIds, portions, userId);
     case 'equal': {
-      const ids = distribution.participantIds ?? participantIds;
+      const ids = requireParticipants(distribution.participantIds ?? participantIds);
       return distribute(amountSen, ids, equalWeights(ids), userId);
     }
-    case 'selected':
+    case 'selected': {
+      const ids = requireParticipants(distribution.participantIds);
       return distribute(
         amountSen,
-        distribution.participantIds,
-        equalWeights(distribution.participantIds),
+        ids,
+        equalWeights(ids),
         userId,
       );
+    }
     case 'user':
       return new Map([[userId, amountSen]]);
     case 'manual': {
@@ -125,6 +145,7 @@ export function allocateBill(input: BillAllocationInput): BillAllocation {
   if (
     participantIds.some((id) => id.trim() === '')
     || new Set(participantIds).size !== participantIds.length
+    || input.participants.some(({ kind }) => !['user', 'friend'].includes(kind))
   ) {
     invalid('Bill participants must have unique identifiers');
   }
@@ -176,16 +197,21 @@ export function allocateBill(input: BillAllocationInput): BillAllocation {
       || left.index - right.index
     ))
     .forEach(({ adjustment }) => {
-      requireSen(adjustment.amountSen, 'adjustment amount');
+      requireAdjustmentAmount(adjustment);
+      const magnitudeSen = Math.abs(adjustment.amountSen);
       const shares = distributionShares(
-        adjustment.amountSen,
+        magnitudeSen,
         adjustment.distribution,
         portions,
         participantIds,
         userId,
       );
       shares.forEach((share, id) => {
-        const signedShare = adjustment.kind === 'discount' ? -share : share;
+        const direction = adjustment.kind === 'discount'
+          || (adjustment.kind === 'rounding' && adjustment.amountSen < 0)
+          ? -1
+          : 1;
+        const signedShare = direction * share;
         const next = addSafe(portions.get(id) ?? 0, signedShare);
         if (next < 0) invalid('Adjustment makes a participant portion negative');
         portions.set(id, next);
