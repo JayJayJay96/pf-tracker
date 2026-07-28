@@ -5,7 +5,9 @@ import { revalidatePath } from 'next/cache';
 import {
   archivePlanTemplate,
   createPlanTemplate,
+  updatePlanEntry,
   updatePlanTemplate,
+  type PlanEntryInput,
   type PlanTemplateInput,
 } from '../../../src/features/plan/actions';
 import { createPlanRepository } from '../../../src/features/plan/supabase-repository';
@@ -27,6 +29,16 @@ function readTemplateInput(formData: FormData): PlanTemplateInput {
     status: readString(formData, 'status'),
     effectiveStart: readString(formData, 'effectiveStart'),
     effectiveEnd: readString(formData, 'effectiveEnd'),
+  };
+}
+
+function readEntryInput(formData: FormData): PlanEntryInput {
+  return {
+    entryType: readString(formData, 'entryType'),
+    status: readString(formData, 'status'),
+    actualAmount: readString(formData, 'actualAmount'),
+    paidDate: readString(formData, 'paidDate'),
+    notes: readString(formData, 'notes'),
   };
 }
 
@@ -67,4 +79,17 @@ export async function generateMonthAction(formData: FormData): Promise<void> {
   });
   revalidatePath('/plan');
   revalidatePath('/');
+}
+
+export async function updateEntryAction(formData: FormData): Promise<void> {
+  const { repository, userId } = await authorizedPlanContext();
+  await updatePlanEntry(
+    repository,
+    userId,
+    readString(formData, 'entryId'),
+    readEntryInput(formData),
+  );
+  revalidatePath('/plan');
+  revalidatePath('/');
+  revalidatePath('/reports');
 }

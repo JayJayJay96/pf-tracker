@@ -60,6 +60,7 @@ function mapExpense(value: unknown): Expense {
     || typeof categoryRow.name !== 'string'
     || !['tng', 'cash'].includes(String(row.payment_method))
     || (row.notes !== null && typeof row.notes !== 'string')
+    || row.transaction_type !== 'personal_expense'
   ) {
     throw new Error('Invalid personal expense data');
   }

@@ -17,6 +17,11 @@ describe('dashboard summary view', () => {
           investments: 30_000,
           resolvedPersonalSpending: 0,
           remainingSpendable: 300_000,
+          paidOnBehalf: 6_000,
+          upcomingCommitmentCount: 2,
+          upcomingCommitmentsSen: 120_000,
+          pendingRequestCount: 3,
+          daysToNextSalary: 4,
         }}
       />,
     );
@@ -31,6 +36,14 @@ describe('dashboard summary view', () => {
     expect(page).toContain('href="/friends"');
     expect(page).toContain('conservative');
     expect(page).toContain('planned active commitments before they are paid');
+    expect(page).toContain('Paid on behalf of friends');
+    expect(page).toContain('RM60.00');
+    expect(page).toContain('Upcoming commitments');
+    expect(page).toContain('2 · RM1200.00');
+    expect(page).toContain('Pending requests');
+    expect(page).toContain('3');
+    expect(page).toContain('Days to next salary');
+    expect(page).toContain('4');
   });
 
   it('renders a negative remaining value without passing it to the unsigned formatter', () => {

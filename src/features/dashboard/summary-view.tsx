@@ -9,7 +9,14 @@ type SummaryViewProps = {
   periodStart: ISODate;
   summary: MonthlySummary & Partial<Pick<
     DashboardSummary,
-    'totalCashOutflow' | 'friendReceivables' | 'unresolvedBillCount'
+    | 'totalCashOutflow'
+    | 'friendReceivables'
+    | 'paidOnBehalf'
+    | 'unresolvedBillCount'
+    | 'upcomingCommitmentCount'
+    | 'upcomingCommitmentsSen'
+    | 'pendingRequestCount'
+    | 'daysToNextSalary'
   >>;
   snapshotCount: number;
   hasSnapshots: boolean;
@@ -105,6 +112,25 @@ export function SummaryView({
         <div>
           <dt>Friends owe</dt>
           <dd>{formatRM(summary.friendReceivables ?? 0)}</dd>
+        </div>
+        <div>
+          <dt>Paid on behalf of friends</dt>
+          <dd>{formatRM(summary.paidOnBehalf ?? 0)}</dd>
+        </div>
+        <div>
+          <dt>Upcoming commitments</dt>
+          <dd>
+            {summary.upcomingCommitmentCount ?? 0} ·{' '}
+            {formatRM(summary.upcomingCommitmentsSen ?? 0)}
+          </dd>
+        </div>
+        <div>
+          <dt>Pending requests</dt>
+          <dd>{summary.pendingRequestCount ?? 0}</dd>
+        </div>
+        <div>
+          <dt>Days to next salary</dt>
+          <dd>{summary.daysToNextSalary ?? 'Not available'}</dd>
         </div>
       </dl>
     </main>

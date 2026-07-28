@@ -24,7 +24,7 @@ export function createPlanRepository(client: SupabaseClient): PlanRepository {
       const { data, error } = await client
         .from('financial_plan_entries')
         .select(
-          'id,template_id,period_start,entry_date,name,entry_type,amount_sen,expected_day,due_day,status',
+          'id,template_id,period_start,entry_date,name,entry_type,amount_sen,actual_amount_sen,expected_day,due_day,status,paid_date,notes',
         )
         .eq('user_id', userId)
         .eq('period_start', periodStart)
@@ -44,6 +44,17 @@ export function createPlanRepository(client: SupabaseClient): PlanRepository {
         .update(values)
         .eq('id', templateId)
         .eq('user_id', userId);
+      return { error };
+    },
+    async updateEntry(entryId, userId, values) {
+      void userId;
+      const { error } = await client.rpc('update_financial_plan_entry', {
+        p_entry_id: entryId,
+        p_status: values.status,
+        p_actual_amount_sen: values.actualAmountSen,
+        p_paid_date: values.paidDate,
+        p_notes: values.notes,
+      });
       return { error };
     },
   };

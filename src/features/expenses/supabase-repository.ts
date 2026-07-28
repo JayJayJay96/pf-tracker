@@ -23,9 +23,10 @@ export function createExpenseRepository(client: SupabaseClient): ExpenseReposito
       let query = client
         .from('transactions')
         .select(
-          'id,amount_sen,description,merchant,transaction_date,recorded_at,category_id,payment_method,notes,categories!transactions_owner_category_fkey(name)',
+          'id,amount_sen,description,merchant,transaction_date,recorded_at,category_id,payment_method,transaction_type,notes,categories!transactions_owner_category_fkey(name)',
         )
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('transaction_type', 'personal_expense');
       if (filters.from) query = query.gte('transaction_date', filters.from);
       if (filters.to) query = query.lte('transaction_date', filters.to);
       if (filters.categoryId) query = query.eq('category_id', filters.categoryId);
@@ -50,7 +51,8 @@ export function createExpenseRepository(client: SupabaseClient): ExpenseReposito
         .from('transactions')
         .update(expense)
         .eq('id', expenseId)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('transaction_type', 'personal_expense');
       return { error };
     },
     async deleteExpense(expenseId, userId) {
@@ -58,7 +60,8 @@ export function createExpenseRepository(client: SupabaseClient): ExpenseReposito
         .from('transactions')
         .delete()
         .eq('id', expenseId)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('transaction_type', 'personal_expense');
       return { error };
     },
   };

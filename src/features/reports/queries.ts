@@ -10,6 +10,7 @@ export type ReportReadRepository = {
   listTransactions(userId: string, startDate: ISODate, endDate: ISODate): Promise<QueryResult>;
   listParticipants(userId: string, startDate: ISODate, endDate: ISODate): Promise<QueryResult>;
   listRequests(userId: string): Promise<QueryResult>;
+  listPaidCommitments(userId: string, startDate: ISODate, endDate: ISODate): Promise<QueryResult>;
 };
 
 export type ReportPeriod = {
@@ -206,7 +207,9 @@ type PlanEntry = {
   name: string;
   entryType: 'income' | 'commitment' | 'savings' | 'investment';
   amountSen: number;
+  actualAmountSen: number | null;
   status: string;
+  paidDate: ISODate | null;
 };
 
 function mapPlanEntry(value: unknown): PlanEntry {
@@ -223,7 +226,11 @@ function mapPlanEntry(value: unknown): PlanEntry {
     name: row.name,
     entryType: row.entry_type as PlanEntry['entryType'],
     amountSen: integer(row.amount_sen),
+    actualAmountSen: row.actual_amount_sen == null
+      ? null
+      : integer(row.actual_amount_sen),
     status: row.status,
+    paidDate: row.paid_date == null ? null : date(row.paid_date),
   };
 }
 
@@ -364,6 +371,7 @@ function summarise(
   transactions: Transaction[],
   participants: Participant[],
   requests: PaymentRequest[],
+  paidCommitments: PlanEntry[],
 ): { summary: ReportSummary; transactions: ReportTransaction[] } {
   const datedEntries = planEntries.filter(({ entryDate }) => inPeriod(entryDate, period));
   const datedTransactions = transactions.filter(
@@ -386,19 +394,19 @@ function summarise(
   ));
   const incomeSen = sum(datedEntries.filter(({ entryType, status }) => (
     entryType === 'income' && status === 'confirmed'
-  )), ({ amountSen }) => amountSen);
+  )), ({ amountSen, actualAmountSen }) => actualAmountSen ?? amountSen);
   const pendingIncomeSen = sum(datedEntries.filter(({ entryType, status }) => (
     entryType === 'income' && status === 'pending'
-  )), ({ amountSen }) => amountSen);
+  )), ({ amountSen, actualAmountSen }) => actualAmountSen ?? amountSen);
   const commitmentsSen = sum(datedEntries.filter(({ entryType, status }) => (
-    entryType === 'commitment' && status === 'active'
-  )), ({ amountSen }) => amountSen);
+    entryType === 'commitment' && ['active', 'pending', 'paid'].includes(status)
+  )), ({ amountSen, actualAmountSen }) => actualAmountSen ?? amountSen);
   const savingsSen = sum(datedEntries.filter(({ entryType }) => (
     entryType === 'savings'
-  )), ({ amountSen }) => amountSen);
+  )), ({ amountSen, actualAmountSen }) => actualAmountSen ?? amountSen);
   const investmentsSen = sum(datedEntries.filter(({ entryType }) => (
     entryType === 'investment'
-  )), ({ amountSen }) => amountSen);
+  )), ({ amountSen, actualAmountSen }) => actualAmountSen ?? amountSen);
   const personalSpendingSen = sum(personalTransactions, ({ amountSen }) => amountSen)
     + sum(userPortions, ({ amountSen }) => amountSen);
   const reportTransactions: ReportTransaction[] = datedTransactions.map((transaction) => ({
@@ -440,10 +448,13 @@ function summarise(
         - savingsSen
         - investmentsSen
         - personalSpendingSen,
-      totalPaidSen: sum(datedTransactions, ({ amountSen }) => amountSen),
+      totalPaidSen: sum(datedTransactions, ({ amountSen }) => amountSen)
+        + sum(paidCommitments.filter(({ paidDate }) => (
+          paidDate !== null && inPeriod(paidDate, period)
+        )), ({ amountSen, actualAmountSen }) => actualAmountSen ?? amountSen),
       paidForFriendsSen: sum(friendPortions, ({ amountSen }) => amountSen),
       requestedSen: sum(requests.filter(({ requestDate, status }) => (
-        status === 'pending' && inPeriod(requestDate, period)
+        ['pending', 'paid'].includes(status) && inPeriod(requestDate, period)
       )), ({ totalSen }) => totalSen),
       collectedSen: sum(requests.filter(({ paidOn, status }) => (
         status === 'paid' && paidOn !== null && inPeriod(paidOn, period)
@@ -479,6 +490,7 @@ export async function getReport(
     repository.listTransactions(userId, startDate, endDate),
     repository.listParticipants(userId, startDate, endDate),
     repository.listRequests(userId),
+    repository.listPaidCommitments(userId, startDate, endDate),
   ]);
   const error = results.find((result) => result.error)?.error;
   if (error) throw new Error(error.message);
@@ -487,7 +499,15 @@ export async function getReport(
   const transactions = results[1].data!.map(mapTransaction);
   const participants = results[2].data!.map(mapParticipant);
   const requests = results[3].data!.map(mapRequest);
-  const current = summarise(period, entries, transactions, participants, requests);
+  const paidCommitments = results[4].data!.map(mapPlanEntry);
+  const current = summarise(
+    period,
+    entries,
+    transactions,
+    participants,
+    requests,
+    paidCommitments,
+  );
   if (!comparisonPeriod) return { period, ...current };
   const previous = summarise(
     comparisonPeriod,
@@ -495,6 +515,7 @@ export async function getReport(
     transactions,
     participants,
     requests,
+    paidCommitments,
   );
   return {
     period,

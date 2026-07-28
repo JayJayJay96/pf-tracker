@@ -12,6 +12,7 @@ import {
   createTemplateAction,
   generateMonthAction,
   updateTemplateAction,
+  updateEntryAction,
 } from './actions';
 
 type MonthlyPlanPageProps = {
@@ -59,6 +60,7 @@ export default async function MonthlyPlanPage({ searchParams }: MonthlyPlanPageP
         update: updateTemplateAction,
         archive: archiveTemplateAction,
         generate: generateMonthAction,
+        updateEntry: updateEntryAction,
       }}
     />
   );

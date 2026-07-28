@@ -1,6 +1,6 @@
 begin;
 
-select plan(46);
+select plan(50);
 
 insert into auth.users (
   instance_id,
@@ -672,21 +672,111 @@ select results_eq(
         where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
           and period_start = '2026-07-01'
       ),
-      'inactive',
+      'pending',
       115000,
-      '2026-07-02',
+      null,
       'Paid by transfer'
     )
   $$,
   $$
     values (
-      'inactive'::text,
+      'pending'::text,
       115000::bigint,
-      '2026-07-02'::date,
+      null::date,
       'Paid by transfer'::text
     )
   $$,
   'the controlled update path changes only execution fields'
+);
+
+select results_eq(
+  $$
+    select status, actual_amount_sen, paid_date, notes
+    from public.update_financial_plan_entry(
+      (
+        select id
+        from public.financial_plan_entries
+        where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
+          and period_start = '2026-07-01'
+      ),
+      'paid',
+      117500,
+      '2026-07-03',
+      'Final variable bill'
+    )
+  $$,
+  $$
+    values (
+      'paid'::text,
+      117500::bigint,
+      '2026-07-03'::date,
+      'Final variable bill'::text
+    )
+  $$,
+  'owners can record a paid commitment actual through the controlled path'
+);
+
+select throws_ok(
+  $$
+    select *
+    from public.update_financial_plan_entry(
+      (
+        select id
+        from public.financial_plan_entries
+        where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
+          and period_start = '2026-07-01'
+      ),
+      'paid',
+      117500,
+      null,
+      'Missing paid date'
+    )
+  $$,
+  '23514',
+  null,
+  'paid commitments require a paid date at the database boundary'
+);
+
+select throws_ok(
+  $$
+    select *
+    from public.update_financial_plan_entry(
+      (
+        select id
+        from public.financial_plan_entries
+        where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
+          and period_start = '2026-07-01'
+      ),
+      'pending',
+      117500,
+      '2026-07-03',
+      'Pending with paid date'
+    )
+  $$,
+  '23514',
+  null,
+  'pending commitments reject a paid date at the database boundary'
+);
+
+select throws_ok(
+  $$
+    select *
+    from public.update_financial_plan_entry(
+      (
+        select id
+        from public.financial_plan_entries
+        where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'
+          and period_start = '2026-07-01'
+      ),
+      'confirmed',
+      510000,
+      '2026-07-25',
+      'Income with paid date'
+    )
+  $$,
+  '23514',
+  null,
+  'income entries reject commitment paid dates'
 );
 
 select results_eq(
@@ -737,9 +827,9 @@ select throws_ok(
         where template_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2'
           and period_start = '2026-07-01'
       ),
-      'inactive',
+      'pending',
       9007199254740992,
-      '2026-07-02',
+      null,
       'Unsafe amount'
     )
   $$,

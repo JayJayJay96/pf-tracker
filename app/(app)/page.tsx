@@ -24,6 +24,15 @@ function currentMonthStart(): ISODate {
   return `${year}-${month}-01`;
 }
 
+function currentDate(): ISODate {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date()) as ISODate;
+}
+
 function selectedMonthStart(value: string | string[] | undefined): ISODate {
   const month = Array.isArray(value) ? value[0] : value;
   const candidate = month && /^\d{4}-\d{2}$/.test(month)
@@ -46,6 +55,7 @@ export default async function HomePage({ searchParams }: HomePageProps = {}) {
     createDashboardRepository(client),
     userId,
     periodStart,
+    currentDate(),
   );
 
   return (

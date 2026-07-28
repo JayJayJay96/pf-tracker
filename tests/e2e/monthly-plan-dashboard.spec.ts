@@ -45,11 +45,33 @@ test('creates monthly snapshots and preserves a historical spendable view', asyn
   ).toBeVisible();
   await expect(page.getByText('Salary', { exact: true }).last()).toBeVisible();
 
+  const snapshots = page.getByRole(
+    'heading',
+    { name: 'Generated snapshots for July 2026' },
+  ).locator('..');
+  const salarySnapshot = snapshots.locator('li').filter({
+    has: page.getByText('Salary', { exact: true }),
+  });
+  await salarySnapshot.getByText('Update actual').click();
+  await salarySnapshot.getByLabel('Actual amount').fill('RM5250.00');
+  await salarySnapshot.getByRole('button', { name: 'Save entry actual' }).click();
+
+  const rentSnapshot = snapshots.locator('li').filter({
+    has: page.getByText('Rent', { exact: true }),
+  });
+  await rentSnapshot.getByText('Update actual').click();
+  await rentSnapshot.getByLabel('Status').selectOption('paid');
+  await rentSnapshot.getByLabel('Actual amount').fill('RM1150.00');
+  await rentSnapshot.getByLabel('Paid date').fill('2026-07-02');
+  await rentSnapshot.getByRole('button', { name: 'Save entry actual' }).click();
+  await expect(rentSnapshot).toContainText('Actual RM1150.00');
+  await expect(rentSnapshot).toContainText('paid 2026-07-02');
+
   await page.goto('/?month=2026-07');
   await expect(page.getByRole('heading', { name: 'July 2026' })).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Remaining spendable' }).locator('..'),
-  ).toContainText('RM3000.00');
+  ).toContainText('RM3300.00');
   await expect(page.getByText('planned active commitments before they are paid')).toBeVisible();
 
   await page.goto('/plan?month=2026-07');
@@ -72,7 +94,7 @@ test('creates monthly snapshots and preserves a historical spendable view', asyn
   await expect(page.getByRole('heading', { name: 'July 2026' })).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Remaining spendable' }).locator('..'),
-  ).toContainText('RM3000.00');
+  ).toContainText('RM3300.00');
 });
 
 async function addTemplate(

@@ -27,14 +27,20 @@ describe('monthly plan view', () => {
           name: 'Salary',
           entryType: 'income',
           amountSen: 500_000,
+          actualAmountSen: 525_050,
           day: 25,
           status: 'confirmed',
+          paidDate: null,
+          notes: 'Final KPI amount',
         }]}
       />,
     );
 
     expect(page).toContain('<h1>Monthly Plan</h1>');
     expect(page).toContain('RM5000.00');
+    expect(page).toContain('Actual RM5250.50');
+    expect(page).toContain('Update actual');
+    expect(page).toContain('Final KPI amount');
     expect(page).toContain('Generated snapshots for July 2026');
     expect(page).toContain('Template edits apply only to months generated afterward.');
     expect(page).toContain('Archive');

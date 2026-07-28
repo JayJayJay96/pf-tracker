@@ -15,6 +15,7 @@ type MonthlyPlanViewProps = {
     update: FormAction;
     archive: FormAction;
     generate: FormAction;
+    updateEntry: FormAction;
   };
 };
 
@@ -191,9 +192,74 @@ export function MonthlyPlanView({
             {entries.map((entry) => (
               <li key={entry.id}>
                 <strong>{entry.name}</strong>{' '}
-                <span>{formatRM(entry.amountSen)}</span>{' '}
+                <span>Planned {formatRM(entry.amountSen)}</span>{' '}
+                {entry.actualAmountSen === null
+                  ? <span>Actual not recorded</span>
+                  : <span>Actual {formatRM(entry.actualAmountSen)}</span>}{' '}
                 <time dateTime={entry.entryDate}>{entry.entryDate}</time>{' '}
                 <span>{entry.status}</span>
+                {entry.paidDate ? (
+                  <> paid <time dateTime={entry.paidDate}>{entry.paidDate}</time></>
+                ) : null}
+                {entry.notes ? <p>{entry.notes}</p> : null}
+                {entry.entryType === 'income' || entry.entryType === 'commitment' ? (
+                  <details>
+                    <summary>Update actual</summary>
+                    <form action={actions?.updateEntry}>
+                      <input type="hidden" name="entryId" value={entry.id} />
+                      <input type="hidden" name="entryType" value={entry.entryType} />
+                      <label>
+                        Status
+                        <select
+                          name="status"
+                          required
+                          defaultValue={entry.entryType === 'commitment'
+                            ? (entry.status === 'paid' ? 'paid' : 'pending')
+                            : entry.status}
+                        >
+                          {entry.entryType === 'income' ? (
+                            <>
+                              <option value="pending">Pending income</option>
+                              <option value="confirmed">Confirmed income</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="pending">Pending commitment</option>
+                              <option value="paid">Paid commitment</option>
+                            </>
+                          )}
+                        </select>
+                      </label>
+                      <label>
+                        Actual amount
+                        <input
+                          name="actualAmount"
+                          inputMode="decimal"
+                          pattern="RM(?:0|[1-9][0-9]*)\.[0-9]{2}"
+                          placeholder="RM0.00"
+                          defaultValue={entry.actualAmountSen === null
+                            ? ''
+                            : formatRM(entry.actualAmountSen)}
+                        />
+                      </label>
+                      {entry.entryType === 'commitment' ? (
+                        <label>
+                          Paid date
+                          <input
+                            name="paidDate"
+                            type="date"
+                            defaultValue={entry.paidDate ?? ''}
+                          />
+                        </label>
+                      ) : <input type="hidden" name="paidDate" value="" />}
+                      <label>
+                        Notes
+                        <textarea name="notes" defaultValue={entry.notes ?? ''} />
+                      </label>
+                      <button type="submit">Save entry actual</button>
+                    </form>
+                  </details>
+                ) : null}
               </li>
             ))}
           </ul>

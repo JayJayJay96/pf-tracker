@@ -26,6 +26,7 @@ function repository(): ExpenseReadRepository {
           category_id: 'food',
           payment_method: 'cash',
           notes: null,
+          transaction_type: 'personal_expense',
           categories: { name: 'Food' },
         },
         {
@@ -38,6 +39,7 @@ function repository(): ExpenseReadRepository {
           category_id: 'food',
           payment_method: 'tng',
           notes: 'Forgotten yesterday',
+          transaction_type: 'personal_expense',
           categories: { name: 'Food' },
         },
       ],
@@ -110,5 +112,28 @@ describe('personal expense history queries', () => {
         paymentMethod: 'tng',
       },
     });
+  });
+
+  it('rejects a shared transaction returned through the personal expense boundary', async () => {
+    const mixedRepository = repository();
+    mixedRepository.listExpenses = async () => ({
+      data: [{
+        id: 'shared-1',
+        amount_sen: 900,
+        description: 'Shared dinner',
+        merchant: null,
+        transaction_date: '2026-07-02',
+        recorded_at: '2026-07-02T04:00:00Z',
+        category_id: 'food',
+        payment_method: 'cash',
+        notes: null,
+        transaction_type: 'shared_expense',
+        categories: { name: 'Food' },
+      }],
+      error: null,
+    });
+
+    await expect(getExpenseHistory(mixedRepository, 'user-a', {}))
+      .rejects.toThrow('Invalid personal expense data');
   });
 });

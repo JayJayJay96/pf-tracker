@@ -38,9 +38,12 @@ describe('monthly plan queries', () => {
             name: 'Salary',
             entry_type: 'income',
             amount_sen: 500_000,
+            actual_amount_sen: 525_050,
             expected_day: 25,
             due_day: null,
             status: 'confirmed',
+            paid_date: null,
+            notes: 'Includes KPI',
           }],
           error: null,
         };
@@ -67,8 +70,11 @@ describe('monthly plan queries', () => {
         name: 'Salary',
         entryType: 'income',
         amountSen: 500_000,
+        actualAmountSen: 525_050,
         day: 25,
         status: 'confirmed',
+        paidDate: null,
+        notes: 'Includes KPI',
       }],
     });
     expect(calls).toEqual([

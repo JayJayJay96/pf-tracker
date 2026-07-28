@@ -23,12 +23,24 @@ type NewPlanTemplate = PlanTemplateWriteValues & {
   is_active: true;
 };
 
+type PlanEntryWriteValues = {
+  status: 'pending' | 'confirmed' | 'paid';
+  actualAmountSen: number | null;
+  paidDate: ISODate | null;
+  notes: string | null;
+};
+
 export type PlanTemplateWriteRepository = {
   insertTemplate(template: NewPlanTemplate): Promise<WriteResult>;
   updateTemplate(
     templateId: string,
     userId: string,
     values: Partial<PlanTemplateWriteValues> | { is_active: false },
+  ): Promise<WriteResult>;
+  updateEntry(
+    entryId: string,
+    userId: string,
+    values: PlanEntryWriteValues,
   ): Promise<WriteResult>;
 };
 
@@ -40,6 +52,14 @@ export type PlanTemplateInput = {
   status: string;
   effectiveStart: string;
   effectiveEnd: string;
+};
+
+export type PlanEntryInput = {
+  entryType: string;
+  status: string;
+  actualAmount: string;
+  paidDate: string;
+  notes: string;
 };
 
 const ENTRY_TYPES = new Set<PlanEntryType>([
@@ -175,5 +195,48 @@ export async function archivePlanTemplate(
     templateId,
     userId,
     { is_active: false },
+  ));
+}
+
+function parseEntryInput(input: PlanEntryInput): PlanEntryWriteValues {
+  try {
+    const entryType = input.entryType as PlanEntryType;
+    const status = input.status;
+    if (
+      (entryType === 'income' && !['pending', 'confirmed'].includes(status))
+      || (entryType === 'commitment' && !['pending', 'paid'].includes(status))
+      || !['income', 'commitment'].includes(entryType)
+    ) {
+      throw new Error();
+    }
+    const paidDate = input.paidDate === '' ? null : input.paidDate as ISODate;
+    if (paidDate) getCalendarMonth(paidDate);
+    if (entryType === 'commitment' && status === 'paid' && paidDate === null) {
+      throw new Error();
+    }
+
+    return {
+      status: status as PlanEntryWriteValues['status'],
+      actualAmountSen: input.actualAmount === '' ? null : parseRM(input.actualAmount),
+      paidDate: entryType === 'commitment' && status === 'paid' ? paidDate : null,
+      notes: input.notes.trim() === '' ? null : input.notes.trim(),
+    };
+  } catch {
+    throw new Error('Invalid monthly plan entry');
+  }
+}
+
+export async function updatePlanEntry(
+  repository: PlanTemplateWriteRepository,
+  userId: string,
+  entryId: string,
+  input: PlanEntryInput,
+): Promise<void> {
+  requireIdentifier(userId);
+  requireIdentifier(entryId);
+  throwWriteError(await repository.updateEntry(
+    entryId,
+    userId,
+    parseEntryInput(input),
   ));
 }

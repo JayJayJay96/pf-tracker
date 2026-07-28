@@ -19,6 +19,8 @@ export type DashboardReadRepository = {
   listPersonalExpenses(userId: string, periodStart: ISODate): Promise<QueryResult>;
   listSharedBills?(userId: string, periodStart: ISODate): Promise<QueryResult>;
   listSharedPortions?(userId: string, periodStart: ISODate): Promise<QueryResult>;
+  listPendingRequests?(userId: string): Promise<QueryResult>;
+  listPaidCommitments?(userId: string, periodStart: ISODate): Promise<QueryResult>;
 };
 
 export type DashboardSummary = MonthlySummary & {
@@ -26,15 +28,29 @@ export type DashboardSummary = MonthlySummary & {
   hasSnapshots: boolean;
   totalCashOutflow: number;
   friendReceivables: number;
+  paidOnBehalf: number;
   unresolvedBillCount: number;
+  upcomingCommitmentCount: number;
+  upcomingCommitmentsSen: number;
+  pendingRequestCount: number;
+  daysToNextSalary: number | null;
 };
 
 type EntryRow = {
   entryDate: ISODate;
   entryType: 'income' | 'commitment' | 'savings' | 'investment';
   amountSen: number;
+  actualAmountSen: number | null;
   status: string;
 };
+
+function optionalAmount(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new Error('Invalid dashboard data');
+  }
+  return value as number;
+}
 
 function mapEntry(value: unknown): EntryRow {
   if (typeof value !== 'object' || value === null) {
@@ -61,8 +77,43 @@ function mapEntry(value: unknown): EntryRow {
     entryDate,
     entryType: entryType as EntryRow['entryType'],
     amountSen: amountSen as number,
+    actualAmountSen: optionalAmount(row.actual_amount_sen),
     status,
   };
+}
+
+function pendingRequest(value: unknown): void {
+  if (
+    typeof value !== 'object'
+    || value === null
+    || typeof (value as Record<string, unknown>).id !== 'string'
+    || (value as Record<string, unknown>).status !== 'pending'
+  ) {
+    throw new Error('Invalid dashboard data');
+  }
+}
+
+function paidCommitment(value: unknown): number {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error('Invalid dashboard data');
+  }
+  const row = value as Record<string, unknown>;
+  if (
+    !Number.isSafeInteger(row.amount_sen)
+    || (row.amount_sen as number) < 0
+    || typeof row.paid_date !== 'string'
+  ) {
+    throw new Error('Invalid dashboard data');
+  }
+  getCalendarMonth(row.paid_date);
+  return optionalAmount(row.actual_amount_sen) ?? row.amount_sen as number;
+}
+
+function daysBetween(from: ISODate, to: ISODate): number {
+  return Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`))
+      / 86_400_000,
+  );
 }
 
 function mapPersonalExpense(value: unknown): {
@@ -152,24 +203,39 @@ export async function getDashboardSummary(
   repository: DashboardReadRepository,
   userId: string,
   periodStart: ISODate,
+  today: ISODate = periodStart,
 ): Promise<DashboardSummary> {
   const period = getCalendarMonth(periodStart);
   if (period.startDate !== periodStart) {
     throw new Error('Period start must be the first day of a calendar month');
   }
 
-  const [entryResult, expenseResult, sharedResult, portionResult] = await Promise.all([
+  getCalendarMonth(today);
+  const [
+    entryResult,
+    expenseResult,
+    sharedResult,
+    portionResult,
+    requestResult,
+    paidCommitmentResult,
+  ] = await Promise.all([
     repository.listEntries(userId, periodStart),
     repository.listPersonalExpenses(userId, periodStart),
     repository.listSharedBills?.(userId, periodStart)
       ?? Promise.resolve({ data: [], error: null }),
     repository.listSharedPortions?.(userId, periodStart)
       ?? Promise.resolve({ data: [], error: null }),
+    repository.listPendingRequests?.(userId)
+      ?? Promise.resolve({ data: [], error: null }),
+    repository.listPaidCommitments?.(userId, periodStart)
+      ?? Promise.resolve({ data: [], error: null }),
   ]);
   const error = entryResult.error
     ?? expenseResult.error
     ?? sharedResult.error
-    ?? portionResult.error;
+    ?? portionResult.error
+    ?? requestResult.error
+    ?? paidCommitmentResult.error;
   if (error) {
     throw new Error(error.message);
   }
@@ -178,6 +244,8 @@ export async function getDashboardSummary(
     || !expenseResult.data
     || !sharedResult.data
     || !portionResult.data
+    || !requestResult.data
+    || !paidCommitmentResult.data
   ) {
     throw new Error('Invalid dashboard data');
   }
@@ -191,9 +259,10 @@ export async function getDashboardSummary(
     personalSpending: [],
   };
 
-  entryResult.data.map(mapEntry).forEach((entry) => {
+  const entries = entryResult.data.map(mapEntry);
+  entries.forEach((entry) => {
     const datedAmount = {
-      amount: entry.amountSen,
+      amount: entry.actualAmountSen ?? entry.amountSen,
       transactionDate: entry.entryDate,
     };
     switch (entry.entryType) {
@@ -204,10 +273,13 @@ export async function getDashboardSummary(
         input.income.push({ ...datedAmount, status: entry.status });
         break;
       case 'commitment':
-        if (entry.status !== 'active' && entry.status !== 'inactive') {
+        if (!['active', 'inactive', 'pending', 'paid'].includes(entry.status)) {
           throw new Error('Invalid dashboard data');
         }
-        input.commitments.push({ ...datedAmount, status: entry.status });
+        input.commitments.push({
+          ...datedAmount,
+          status: entry.status === 'inactive' ? 'inactive' : 'active',
+        });
         break;
       case 'savings':
         if (entry.status !== 'planned') {
@@ -257,13 +329,44 @@ export async function getDashboardSummary(
       ? total + portion.amountSen
       : total;
   }, 0);
+  const paidOnBehalf = portions.reduce((total, portion) => {
+    const bill = sharedBillsById.get(portion.transactionId);
+    return portion.kind === 'friend' && bill?.status === 'resolved'
+      ? total + portion.amountSen
+      : total;
+  }, 0);
+  const upcomingCommitments = entries.filter((entry) => (
+    entry.entryType === 'commitment'
+    && ['active', 'pending'].includes(entry.status)
+    && entry.entryDate >= today
+  ));
+  const nextSalary = entries
+    .filter((entry) => (
+      entry.entryType === 'income'
+      && entry.status === 'confirmed'
+      && entry.entryDate >= today
+    ))
+    .sort((left, right) => left.entryDate.localeCompare(right.entryDate))[0];
+  requestResult.data.forEach(pendingRequest);
+  const paidCommitmentOutflow = paidCommitmentResult.data.reduce<number>(
+    (total, value) => total + paidCommitment(value),
+    0,
+  );
 
   return {
     ...calculateMonthlySummary(input),
     snapshotCount: entryResult.data.length,
     hasSnapshots: entryResult.data.length > 0,
-    totalCashOutflow: personalCashOutflow + sharedCashOutflow,
+    totalCashOutflow: personalCashOutflow + sharedCashOutflow + paidCommitmentOutflow,
     friendReceivables,
+    paidOnBehalf,
     unresolvedBillCount: sharedBills.filter(({ status }) => status === 'unresolved').length,
+    upcomingCommitmentCount: upcomingCommitments.length,
+    upcomingCommitmentsSen: upcomingCommitments.reduce(
+      (total, entry) => total + (entry.actualAmountSen ?? entry.amountSen),
+      0,
+    ),
+    pendingRequestCount: requestResult.data.length,
+    daysToNextSalary: nextSalary ? daysBetween(today, nextSalary.entryDate) : null,
   };
 }

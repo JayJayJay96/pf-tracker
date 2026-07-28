@@ -34,6 +34,7 @@ const STATUSES = new Set<PlanEntryStatus>([
   'active',
   'inactive',
   'planned',
+  'paid',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -66,6 +67,22 @@ function readAmount(row: Record<string, unknown>): number {
     throw new Error('Invalid monthly plan data');
   }
   return amount as number;
+}
+
+function readOptionalAmount(row: Record<string, unknown>): number | null {
+  const amount = row.actual_amount_sen;
+  if (amount === null) return null;
+  if (!Number.isSafeInteger(amount) || (amount as number) < 0) {
+    throw new Error('Invalid monthly plan data');
+  }
+  return amount as number;
+}
+
+function readOptionalString(row: Record<string, unknown>, key: string): string | null {
+  const value = row[key];
+  if (value === null) return null;
+  if (typeof value !== 'string') throw new Error('Invalid monthly plan data');
+  return value;
 }
 
 function readType(row: Record<string, unknown>): PlanEntryType {
@@ -140,8 +157,11 @@ function mapEntry(value: unknown): PlanEntry {
     name: readString(value, 'name'),
     entryType,
     amountSen: readAmount(value),
+    actualAmountSen: readOptionalAmount(value),
     day: readDay(value, entryType),
     status: readStatus(value),
+    paidDate: readOptionalDate(value, 'paid_date'),
+    notes: readOptionalString(value, 'notes'),
   };
 }
 

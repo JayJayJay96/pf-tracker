@@ -11,7 +11,7 @@ export function createDashboardRepository(
     async listEntries(userId, periodStart) {
       const { data, error } = await client
         .from('financial_plan_entries')
-        .select('entry_date,entry_type,amount_sen,status')
+        .select('entry_date,entry_type,amount_sen,actual_amount_sen,status')
         .eq('user_id', userId)
         .eq('period_start', periodStart)
         .order('entry_date');
@@ -50,6 +50,26 @@ export function createDashboardRepository(
         .eq('user_id', userId)
         .gte('transactions.transaction_date', period.startDate)
         .lte('transactions.transaction_date', period.endDate);
+      return { data, error };
+    },
+    async listPendingRequests(userId) {
+      const { data, error } = await client
+        .from('payment_requests')
+        .select('id,status')
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+      return { data, error };
+    },
+    async listPaidCommitments(userId, periodStart) {
+      const period = getCalendarMonth(periodStart);
+      const { data, error } = await client
+        .from('financial_plan_entries')
+        .select('amount_sen,actual_amount_sen,paid_date')
+        .eq('user_id', userId)
+        .eq('entry_type', 'commitment')
+        .eq('status', 'paid')
+        .gte('paid_date', period.startDate)
+        .lte('paid_date', period.endDate);
       return { data, error };
     },
   };

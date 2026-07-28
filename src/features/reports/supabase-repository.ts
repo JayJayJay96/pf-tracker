@@ -7,7 +7,7 @@ export function createReportRepository(client: SupabaseClient): ReportReadReposi
     async listPlanEntries(userId, startDate, endDate) {
       const { data, error } = await client
         .from('financial_plan_entries')
-        .select('id,entry_date,name,entry_type,amount_sen,status')
+        .select('id,entry_date,name,entry_type,amount_sen,actual_amount_sen,status')
         .eq('user_id', userId)
         .gte('entry_date', startDate)
         .lte('entry_date', endDate);
@@ -40,6 +40,19 @@ export function createReportRepository(client: SupabaseClient): ReportReadReposi
         .from('payment_requests')
         .select('id,total_sen,request_date,status,paid_on')
         .eq('user_id', userId);
+      return { data, error };
+    },
+    async listPaidCommitments(userId, startDate, endDate) {
+      const { data, error } = await client
+        .from('financial_plan_entries')
+        .select(
+          'id,entry_date,name,entry_type,amount_sen,actual_amount_sen,status,paid_date',
+        )
+        .eq('user_id', userId)
+        .eq('entry_type', 'commitment')
+        .eq('status', 'paid')
+        .gte('paid_date', startDate)
+        .lte('paid_date', endDate);
       return { data, error };
     },
   };
