@@ -57,6 +57,8 @@ The date/day fields are not used to prorate or make exact date-based calculation
 - Active fixed income contributes to available spendable.
 - Active commitments subtract from available spendable.
 - Paid/unpaid commitment state can still exist for tracking, but the commitment subtracts from spendable either way.
+- Income and commitments normally carry forward automatically into future months.
+- The user can edit or archive an income/commitment when it stops being relevant.
 
 This should reuse the existing monthly plan/template model where possible, but the user-facing language should be simpler: "Income" and "Commitments" before "templates" and "snapshots".
 
@@ -126,6 +128,7 @@ On small screens, keep navigation compact and predictable. The main daily routes
 - Do not add new dependencies.
 - Keep the dark UI with subtle blue accents.
 - Keep copy short and practical.
+- Reuse recurring monthly plan templates for income and commitments so fixed items continue into future months.
 
 ## Testing
 
