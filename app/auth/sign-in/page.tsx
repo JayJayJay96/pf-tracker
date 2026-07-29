@@ -1,5 +1,9 @@
 import { SignInForm } from './sign-in-form';
 
+export const metadata = {
+  title: 'Sign in',
+};
+
 type SignInPageProps = {
   searchParams: Promise<{
     error?: string | string[];

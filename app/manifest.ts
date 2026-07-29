@@ -7,8 +7,10 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Private personal spending, shared bills, and friend settlements.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#f7f4ed',
-    theme_color: '#173f35',
+    // Matches the shipped dark navy; the previous cream and green pairing
+    // flashed on every cold start of the installed app.
+    background_color: '#061018',
+    theme_color: '#0b1621',
     icons: [
       {
         src: '/icon-192x192.png',

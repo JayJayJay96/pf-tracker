@@ -11,6 +11,10 @@ import { createReportRepository } from '../../../src/features/reports/supabase-r
 import { getCurrentUserId } from '../../../src/lib/auth/current-user';
 import { createClient } from '../../../src/lib/supabase/server';
 
+export const metadata = {
+  title: 'Reports',
+};
+
 type ReportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };

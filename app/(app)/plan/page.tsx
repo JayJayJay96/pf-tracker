@@ -15,6 +15,10 @@ import {
   updateEntryAction,
 } from './actions';
 
+export const metadata = {
+  title: 'Income & Commitments',
+};
+
 type MonthlyPlanPageProps = {
   searchParams: Promise<{
     month?: string | string[];

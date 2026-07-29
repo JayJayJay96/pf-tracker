@@ -14,6 +14,10 @@ import { TransactionHistoryView } from '../../../src/features/transactions/trans
 import { getCurrentUserId } from '../../../src/lib/auth/current-user';
 import { createClient } from '../../../src/lib/supabase/server';
 
+export const metadata = {
+  title: 'Transactions',
+};
+
 type TransactionsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };

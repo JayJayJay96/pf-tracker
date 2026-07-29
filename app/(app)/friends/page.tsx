@@ -6,6 +6,10 @@ import { createFriendRepository } from '../../../src/features/friends/supabase-r
 import { getCurrentUserId } from '../../../src/lib/auth/current-user';
 import { createClient } from '../../../src/lib/supabase/server';
 
+export const metadata = {
+  title: 'Friends',
+};
+
 export default async function FriendsPage() {
   const client = await createClient();
   const userId = await getCurrentUserId(() => client.auth.getClaims());

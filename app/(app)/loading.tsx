@@ -1,3 +1,7 @@
 export default function Loading() {
-  return <p role="status">Loading your financial plan…</p>;
+  return (
+    <p className="px-5 py-8 text-sm text-ink-muted" role="status">
+      Loading…
+    </p>
+  );
 }

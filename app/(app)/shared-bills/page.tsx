@@ -12,6 +12,10 @@ import {
   resolveBillAction,
 } from './actions';
 
+export const metadata = {
+  title: 'Shared Bills',
+};
+
 function todayInMalaysia(): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Kuala_Lumpur',

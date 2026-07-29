@@ -15,6 +15,10 @@ import {
   updateExpenseAction,
 } from './actions';
 
+export const metadata = {
+  title: 'Expenses',
+};
+
 type ExpensePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };

@@ -7,6 +7,10 @@ import { SummaryView } from '../../src/features/dashboard/summary-view';
 import { getCurrentUserId } from '../../src/lib/auth/current-user';
 import { createClient } from '../../src/lib/supabase/server';
 
+export const metadata = {
+  title: 'Dashboard',
+};
+
 type HomePageProps = {
   searchParams?: Promise<{
     month?: string | string[];
