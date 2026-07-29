@@ -1,3 +1,38 @@
+/*
+ * Tailwind v4, with Preflight deliberately left out.
+ *
+ * Importing `tailwindcss` wholesale injects Preflight into the base layer, which
+ * would reset margins, heading sizes and list styles across every screen still
+ * styled by the legacy rules below — a big-bang regression. Importing the theme
+ * and utility layers only gives tokens and utilities with zero effect on
+ * existing pages, so routes can be converted one at a time. Add the Preflight
+ * import once nothing depends on the legacy block any more.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/*
+ * Design tokens. Mirrors the legacy custom properties in `:root` below so both
+ * systems render the same colours during the migration, and adds what a finance
+ * app cannot do without: money that reads as positive or negative.
+ */
+@theme {
+  --color-canvas: #061018;
+  --color-surface: #0b1621;
+  --color-surface-raised: #0e1d2b;
+  --color-hairline: rgba(84, 187, 255, 0.22);
+  --color-hairline-strong: rgba(93, 201, 255, 0.52);
+  --color-ink: #edf7ff;
+  --color-ink-muted: #8ea6b8;
+  --color-accent: #55c7ff;
+  --color-accent-soft: rgba(85, 199, 255, 0.12);
+  --color-positive: #6fe3b0;
+  --color-negative: #ff9a9a;
+  --color-warning: #f7bf5b;
+  --color-focus: #9fe0ff;
+}
+
 :root {
   color-scheme: dark;
   --bg: #061018;

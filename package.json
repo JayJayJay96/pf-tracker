@@ -16,9 +16,12 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.9",
+    "@tailwindcss/postcss": "^4.3.3",
     "next": "^16.2.12",
+    "postcss": "^8.5.25",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "tailwindcss": "^4.3.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
