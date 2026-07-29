@@ -4,11 +4,22 @@ import { useState } from 'react';
 
 import { allocateBill } from '../../domain/bills/allocation';
 import type { AdjustmentDistribution, BillAdjustment } from '../../domain/bills/types';
-import { formatRM, parseRM } from '../../domain/money';
+import {
+  formatAmountInput,
+  formatRM,
+  requireAmountInput,
+  requireSignedAmountInput,
+} from '../../domain/money';
+import { ActionForm } from '../forms/action-form';
+import { MoneyInput } from '../forms/money-input';
+import type { FormResult } from '../forms/result';
 import type { ConfiguredResolutionInput } from './actions';
 import type { Friend } from './queries';
 
-type FormAction = (formData: FormData) => void | Promise<void>;
+type FormAction = (
+  previous: FormResult,
+  formData: FormData,
+) => Promise<FormResult>;
 type ItemDraft = {
   key: number;
   description: string;
@@ -25,13 +36,6 @@ type AdjustmentDraft = {
   manualAmounts: Record<string, string>;
 };
 
-function signedRM(value: string): number {
-  const normalized = value.trim();
-  return normalized.startsWith('-')
-    ? -parseRM(normalized.slice(1))
-    : parseRM(normalized);
-}
-
 export function ResolutionEditor({
   billId,
   totalSen,
@@ -47,8 +51,8 @@ export function ResolutionEditor({
   const [items, setItems] = useState<ItemDraft[]>([{
     key: 0,
     description: '',
-    amount: formatRM(totalSen),
-    discount: 'RM0.00',
+    amount: formatAmountInput(totalSen),
+    discount: '0.00',
     participantIds: ['user'],
   }]);
   const [adjustments, setAdjustments] = useState<AdjustmentDraft[]>([]);
@@ -78,7 +82,7 @@ export function ResolutionEditor({
         people.some((person) => person.id === id)
       )),
       manualAmounts: Object.fromEntries(
-        people.map(({ id }) => [id, adjustment.manualAmounts[id] ?? 'RM0.00']),
+        people.map(({ id }) => [id, adjustment.manualAmounts[id] ?? '0.00']),
       ),
     })),
   };
@@ -93,8 +97,8 @@ export function ResolutionEditor({
         })),
         items: configuration.items.map((item, index) => ({
           id: String(index),
-          amountSen: parseRM(item.amount),
-          discountSen: parseRM(item.discount),
+          amountSen: requireAmountInput(item.amount),
+          discountSen: requireAmountInput(item.discount),
           participantIds: item.participantIds,
         })),
         adjustments: configuration.adjustments.map((adjustment, index) => {
@@ -123,7 +127,7 @@ export function ResolutionEditor({
                 method: 'manual',
                 amountsSen: Object.fromEntries(
                   Object.entries(adjustment.manualAmounts).map(([id, amount]) => (
-                    [id, parseRM(amount)]
+                    [id, requireAmountInput(amount)]
                   )),
                 ),
               };
@@ -135,8 +139,8 @@ export function ResolutionEditor({
             id: String(index),
             kind,
             amountSen: kind === 'rounding'
-              ? signedRM(adjustment.amount)
-              : parseRM(adjustment.amount),
+              ? requireSignedAmountInput(adjustment.amount)
+              : requireAmountInput(adjustment.amount),
             distribution,
           };
         }),
@@ -165,7 +169,7 @@ export function ResolutionEditor({
   }
 
   return (
-    <form action={action}>
+    <ActionForm action={action} resetOnSuccess={false}>
       <fieldset>
         <legend>People</legend>
         <p>You are always included.</p>
@@ -201,22 +205,20 @@ export function ResolutionEditor({
                 required
               />
             </label>
-            <label>
-              Item {index + 1} amount
-              <input
-                value={item.amount}
-                onChange={(event) => updateItem(item.key, { amount: event.target.value })}
-                required
-              />
-            </label>
-            <label>
-              Item {index + 1} discount
-              <input
-                value={item.discount}
-                onChange={(event) => updateItem(item.key, { discount: event.target.value })}
-                required
-              />
-            </label>
+            <MoneyInput
+              name={`item-${item.key}-amount`}
+              label={`Item ${index + 1} amount`}
+              value={item.amount}
+              onValueChange={(amount) => updateItem(item.key, { amount })}
+              required
+            />
+            <MoneyInput
+              name={`item-${item.key}-discount`}
+              label={`Item ${index + 1} discount`}
+              value={item.discount}
+              onValueChange={(discount) => updateItem(item.key, { discount })}
+              required
+            />
             {people.map((person) => (
               <label key={person.id}>
                 <input
@@ -240,8 +242,8 @@ export function ResolutionEditor({
             setItems((current) => [...current, {
               key: Math.max(...current.map(({ key }) => key), 0) + 1,
               description: '',
-              amount: 'RM0.00',
-              discount: 'RM0.00',
+              amount: '0.00',
+              discount: '0.00',
               participantIds: ['user'],
             }]);
           }}
@@ -269,16 +271,14 @@ export function ResolutionEditor({
                 <option value="rounding">Signed rounding</option>
               </select>
             </label>
-            <label>
-              Adjustment {index + 1} amount
-              <input
-                value={adjustment.amount}
-                onChange={(event) => updateAdjustment(adjustment.key, {
-                  amount: event.target.value,
-                })}
-                required
-              />
-            </label>
+            <MoneyInput
+              name={`adjustment-${adjustment.key}-amount`}
+              label={`Adjustment ${index + 1} amount`}
+              value={adjustment.amount}
+              onValueChange={(amount) => updateAdjustment(adjustment.key, { amount })}
+              allowNegative={adjustment.kind === 'rounding'}
+              required
+            />
             <label>
               Adjustment {index + 1} distribution
               <select
@@ -308,18 +308,14 @@ export function ResolutionEditor({
                   />
                   Adjustment {index + 1} include {person.name}
                 </label>
-                <label>
-                  Adjustment {index + 1} {person.name} manual amount
-                  <input
-                    value={adjustment.manualAmounts[person.id] ?? 'RM0.00'}
-                    onChange={(event) => updateAdjustment(adjustment.key, {
-                      manualAmounts: {
-                        ...adjustment.manualAmounts,
-                        [person.id]: event.target.value,
-                      },
-                    })}
-                  />
-                </label>
+                <MoneyInput
+                  name={`adjustment-${adjustment.key}-manual-${person.id}`}
+                  label={`Adjustment ${index + 1} ${person.name} manual amount`}
+                  value={adjustment.manualAmounts[person.id] ?? '0.00'}
+                  onValueChange={(amount) => updateAdjustment(adjustment.key, {
+                    manualAmounts: { ...adjustment.manualAmounts, [person.id]: amount },
+                  })}
+                />
               </div>
             ))}
           </fieldset>
@@ -331,7 +327,7 @@ export function ResolutionEditor({
             setAdjustments((current) => [...current, {
               key: Math.max(...current.map(({ key }) => key), 0) + 1,
               kind: 'discount',
-              amount: 'RM0.00',
+              amount: '0.00',
               method: 'proportional',
               participantIds: [],
               manualAmounts: {},
@@ -372,6 +368,6 @@ export function ResolutionEditor({
       <button type="submit" disabled={Boolean(review.error) || !confirmed}>
         Resolve shared bill
       </button>
-    </form>
+    </ActionForm>
   );
 }

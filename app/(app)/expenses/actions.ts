@@ -10,6 +10,7 @@ import {
   type ExpenseInput,
 } from '../../../src/features/expenses/actions';
 import { createExpenseRepository } from '../../../src/features/expenses/supabase-repository';
+import type { FormResult } from '../../../src/features/forms/result';
 import { requireCurrentUserId } from '../../../src/lib/auth/current-user';
 import { createClient } from '../../../src/lib/supabase/server';
 
@@ -41,31 +42,66 @@ function revalidateExpenseViews(): void {
   revalidatePath('/');
 }
 
-export async function createCategoryAction(formData: FormData): Promise<void> {
-  const { repository, userId } = await authorizedExpenseContext();
-  await createExpenseCategory(repository, userId, readString(formData, 'name'));
-  revalidatePath('/expenses');
+/**
+ * Runs a mutation and revalidates only when it succeeded, so a rejected form
+ * keeps the page — and the values the person typed — exactly as they were.
+ */
+async function submit(
+  run: () => Promise<FormResult>,
+  revalidate: () => void,
+): Promise<FormResult> {
+  const result = await run();
+  if (result.status === 'success') {
+    revalidate();
+  }
+  return result;
 }
 
-export async function createExpenseAction(formData: FormData): Promise<void> {
+export async function createCategoryAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
   const { repository, userId } = await authorizedExpenseContext();
-  await createExpense(repository, userId, readExpenseInput(formData));
-  revalidateExpenseViews();
-}
-
-export async function updateExpenseAction(formData: FormData): Promise<void> {
-  const { repository, userId } = await authorizedExpenseContext();
-  await updateExpense(
-    repository,
-    userId,
-    readString(formData, 'expenseId'),
-    readExpenseInput(formData),
+  return submit(
+    () => createExpenseCategory(repository, userId, readString(formData, 'name')),
+    () => revalidatePath('/expenses'),
   );
-  revalidateExpenseViews();
 }
 
-export async function deleteExpenseAction(formData: FormData): Promise<void> {
+export async function createExpenseAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
   const { repository, userId } = await authorizedExpenseContext();
-  await deleteExpense(repository, userId, readString(formData, 'expenseId'));
-  revalidateExpenseViews();
+  return submit(
+    () => createExpense(repository, userId, readExpenseInput(formData)),
+    revalidateExpenseViews,
+  );
+}
+
+export async function updateExpenseAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
+  const { repository, userId } = await authorizedExpenseContext();
+  return submit(
+    () => updateExpense(
+      repository,
+      userId,
+      readString(formData, 'expenseId'),
+      readExpenseInput(formData),
+    ),
+    revalidateExpenseViews,
+  );
+}
+
+export async function deleteExpenseAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
+  const { repository, userId } = await authorizedExpenseContext();
+  return submit(
+    () => deleteExpense(repository, userId, readString(formData, 'expenseId')),
+    revalidateExpenseViews,
+  );
 }

@@ -1,11 +1,16 @@
 import Link from 'next/link';
 
 import { formatRM } from '../../domain/money';
-import { DraftForm } from '../forms/draft-form';
+import { MoneyInput } from '../forms/money-input';
+import type { FormResult } from '../forms/result';
+import { ActionForm } from '../forms/action-form';
 import type { Friend, SharedBill } from './queries';
 import { ResolutionEditor } from './resolution-editor';
 
-type FormAction = (formData: FormData) => void | Promise<void>;
+type FormAction = (
+  previous: FormResult,
+  formData: FormData,
+) => Promise<FormResult>;
 
 type SharedBillViewProps = {
   friends: Friend[];
@@ -22,16 +27,7 @@ type SharedBillViewProps = {
 function SharedBillFields({ defaultTransactionDate }: { defaultTransactionDate: string }) {
   return (
     <>
-      <label>
-        Amount
-        <input
-          name="amount"
-          inputMode="decimal"
-          pattern="RM(?:0|[1-9][0-9]*)\.[0-9]{2}"
-          placeholder="RM0.00"
-          required
-        />
-      </label>
+      <MoneyInput name="amount" label="Amount" required />
       <label>
         Description
         <input name="description" required />
@@ -77,28 +73,25 @@ export function SharedBillView({
 
       <section aria-labelledby="record-bill-heading">
         <h2 id="record-bill-heading">Record shared bill</h2>
-        {userId ? <DraftForm
+        <ActionForm
           action={actions?.createBill}
           userId={userId}
-          formId="shared-bill"
+          formId={userId ? 'shared-bill' : undefined}
+          successMessage="Shared bill saved."
         >
           <SharedBillFields defaultTransactionDate={defaultTransactionDate} />
-        </DraftForm> : (
-          <form action={actions?.createBill}>
-            <SharedBillFields defaultTransactionDate={defaultTransactionDate} />
-          </form>
-        )}
+        </ActionForm>
       </section>
 
       <section aria-labelledby="friends-heading">
         <h2 id="friends-heading">Friends</h2>
-        <form action={actions?.createFriend}>
+        <ActionForm action={actions?.createFriend}>
           <label>
             Friend name
             <input name="name" required />
           </label>
           <button type="submit">Add friend</button>
-        </form>
+        </ActionForm>
         {friends.length === 0
           ? <p>Add a friend before resolving a bill.</p>
           : <p>{friends.map(({ name }) => name).join(', ')}</p>}

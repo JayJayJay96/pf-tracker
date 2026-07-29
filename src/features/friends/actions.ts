@@ -1,4 +1,4 @@
-import { parseRM } from '../../domain/money';
+import { requireAmountInput } from '../../domain/money';
 import { getCalendarMonth, type ISODate } from '../../domain/periods';
 import type { PaymentRequestStatus } from '../../domain/requests/state';
 
@@ -94,7 +94,9 @@ export async function settlePaymentRequest(
     userId: required(userId),
     requestId: required(input.requestId),
     status: input.status,
-    paidAmountSen: input.status === 'paid' ? parseRM(input.paidAmount) : null,
+    paidAmountSen: input.status === 'paid'
+      ? requireAmountInput(input.paidAmount)
+      : null,
     occurredOn: date(input.occurredOn),
   });
   if (result.error) throw new Error(result.error.message);

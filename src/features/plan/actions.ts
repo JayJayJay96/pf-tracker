@@ -1,4 +1,4 @@
-import { parseRM } from '../../domain/money';
+import { requireAmountInput } from '../../domain/money';
 import { getCalendarMonth, type ISODate } from '../../domain/periods';
 import type { PlanEntryStatus, PlanEntryType } from './types';
 
@@ -130,7 +130,7 @@ function parseTemplateInput(input: PlanTemplateInput): PlanTemplateWriteValues {
     return {
       name,
       entry_type: entryType,
-      amount_sen: parseRM(input.amount),
+      amount_sen: requireAmountInput(input.amount),
       effective_start: effectiveStart,
       effective_end: effectiveEnd,
       recurrence: 'monthly',
@@ -217,7 +217,9 @@ function parseEntryInput(input: PlanEntryInput): PlanEntryWriteValues {
 
     return {
       status: status as PlanEntryWriteValues['status'],
-      actualAmountSen: input.actualAmount === '' ? null : parseRM(input.actualAmount),
+      actualAmountSen: input.actualAmount === ''
+        ? null
+        : requireAmountInput(input.actualAmount),
       paidDate: entryType === 'commitment' && status === 'paid' ? paidDate : null,
       notes: input.notes.trim() === '' ? null : input.notes.trim(),
     };

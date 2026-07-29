@@ -16,26 +16,26 @@ test('creates monthly snapshots and preserves a historical spendable view', asyn
   await addTemplate(page, {
     name: 'Salary',
     type: 'income',
-    amount: 'RM5000.00',
+    amount: '5000.00',
     day: '25',
     status: 'confirmed',
   });
   await addTemplate(page, {
     name: 'Rent',
     type: 'commitment',
-    amount: 'RM1200.00',
+    amount: '1200.00',
     day: '1',
   });
   await addTemplate(page, {
     name: 'Emergency fund',
     type: 'savings',
-    amount: 'RM500.00',
+    amount: '500.00',
     day: '15',
   });
   await addTemplate(page, {
     name: 'Index fund',
     type: 'investment',
-    amount: 'RM300.00',
+    amount: '300.00',
     day: '20',
   });
 
@@ -53,7 +53,7 @@ test('creates monthly snapshots and preserves a historical spendable view', asyn
     has: page.getByText('Salary', { exact: true }),
   });
   await salarySnapshot.getByText('Update actual').click();
-  await salarySnapshot.getByLabel('Actual amount').fill('RM5250.00');
+  await salarySnapshot.getByLabel('Actual amount').fill('5250.00');
   await salarySnapshot.getByRole('button', { name: 'Save entry actual' }).click();
 
   const rentSnapshot = snapshots.locator('li').filter({
@@ -61,7 +61,7 @@ test('creates monthly snapshots and preserves a historical spendable view', asyn
   });
   await rentSnapshot.getByText('Update actual').click();
   await rentSnapshot.getByLabel('Status').selectOption('paid');
-  await rentSnapshot.getByLabel('Actual amount').fill('RM1150.00');
+  await rentSnapshot.getByLabel('Actual amount').fill('1150.00');
   await rentSnapshot.getByLabel('Paid date').fill('2026-07-02');
   await rentSnapshot.getByRole('button', { name: 'Save entry actual' }).click();
   await expect(rentSnapshot).toContainText('Actual RM1150.00');
@@ -77,7 +77,7 @@ test('creates monthly snapshots and preserves a historical spendable view', asyn
   await page.goto('/plan?month=2026-07');
   await page.getByText('Edit Salary', { exact: true }).click();
   const salaryEditor = page.getByText('Edit Salary', { exact: true }).locator('..');
-  await salaryEditor.getByLabel('Amount').fill('RM5500.00');
+  await salaryEditor.getByLabel('Amount').fill('5500.00');
   await salaryEditor.getByRole('button', { name: 'Save future template' }).click();
 
   await page.getByRole('textbox', { name: 'Month' }).fill('2026-08');

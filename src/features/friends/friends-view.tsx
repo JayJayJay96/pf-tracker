@@ -1,6 +1,8 @@
 import Link from 'next/link';
 
 import { formatRM } from '../../domain/money';
+import { ActionForm } from '../forms/action-form';
+import type { FormResult } from '../forms/result';
 import { buildPaymentSummary } from './payment-summary';
 import type {
   FriendBalance,
@@ -8,7 +10,10 @@ import type {
   PaymentRequest,
 } from './queries';
 
-type FormAction = (formData: FormData) => void | Promise<void>;
+type FormAction = (
+  previous: FormResult,
+  formData: FormData,
+) => Promise<FormResult>;
 
 function PrimaryNavigation() {
   return (
@@ -86,7 +91,7 @@ export function FriendLedgerView({
         {unrequested.length === 0 ? (
           <p>No unrequested portions are available.</p>
         ) : (
-          <form action={createRequestAction}>
+          <ActionForm action={createRequestAction}>
             <input type="hidden" name="friendId" value={friend.id} />
             {unrequested.map((portion) => (
               <label key={portion.portionId}>
@@ -113,7 +118,7 @@ export function FriendLedgerView({
               <input name="note" />
             </label>
             <button type="submit">Create payment request</button>
-          </form>
+          </ActionForm>
         )}
       </section>
 
@@ -194,7 +199,7 @@ export function PaymentRequestView({
       {request.status === 'pending' ? (
         <section aria-labelledby="settlement-heading">
           <h2 id="settlement-heading">Settle request</h2>
-          <form action={transitionAction}>
+          <ActionForm action={transitionAction}>
             <input type="hidden" name="requestId" value={request.id} />
             <input type="hidden" name="status" value="paid" />
             <input
@@ -216,8 +221,8 @@ export function PaymentRequestView({
               Confirm full payment of {formatRM(request.totalSen)}
             </label>
             <button type="submit">Mark paid in full</button>
-          </form>
-          <form action={transitionAction}>
+          </ActionForm>
+          <ActionForm action={transitionAction}>
             <input type="hidden" name="requestId" value={request.id} />
             <input type="hidden" name="status" value="cancelled" />
             <input type="hidden" name="occurredOn" value={defaultOccurredOn} />
@@ -226,8 +231,8 @@ export function PaymentRequestView({
               Confirm cancellation and unlock portions
             </label>
             <button type="submit">Cancel request</button>
-          </form>
-          <form action={transitionAction}>
+          </ActionForm>
+          <ActionForm action={transitionAction}>
             <input type="hidden" name="requestId" value={request.id} />
             <input type="hidden" name="status" value="forgiven" />
             <input type="hidden" name="occurredOn" value={defaultOccurredOn} />
@@ -236,7 +241,7 @@ export function PaymentRequestView({
               Confirm forgiveness
             </label>
             <button type="submit">Forgive request</button>
-          </form>
+          </ActionForm>
         </section>
       ) : (
         <p>

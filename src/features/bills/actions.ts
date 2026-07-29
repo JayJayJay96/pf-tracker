@@ -6,7 +6,7 @@ import type {
   BillAdjustment,
   BillItem,
 } from '../../domain/bills/types';
-import { parseRM } from '../../domain/money';
+import { requireAmountInput, requireSignedAmountInput } from '../../domain/money';
 import { getCalendarMonth, type ISODate } from '../../domain/periods';
 
 type WriteResult = { error: { message: string } | null };
@@ -114,13 +114,6 @@ function throwWriteError(result: WriteResult): void {
   if (result.error) throw new Error(result.error.message);
 }
 
-function parseSignedRM(value: string): number {
-  const normalized = value.trim();
-  return normalized.startsWith('-')
-    ? -parseRM(normalized.slice(1))
-    : parseRM(normalized);
-}
-
 function deterministicUuid(value: string): string {
   const hex = createHash('md5').update(value).digest('hex');
   return [
@@ -155,7 +148,7 @@ export async function createUnresolvedBill(
   input: UnresolvedBillInput,
 ): Promise<void> {
   try {
-    const amountSen = parseRM(input.amount);
+    const amountSen = requireAmountInput(input.amount);
     const transactionDate = input.transactionDate as ISODate;
     const paymentMethod = input.paymentMethod as 'tng' | 'cash';
     getCalendarMonth(transactionDate);
@@ -273,8 +266,8 @@ export async function resolveConfiguredBill(
     itemUuid.set(index, randomUUID());
     return {
       id: String(index),
-      amountSen: parseRM(item.amount),
-      discountSen: parseRM(item.discount),
+      amountSen: requireAmountInput(item.amount),
+      discountSen: requireAmountInput(item.discount),
       participantIds: item.participantIds,
     };
   });
@@ -286,8 +279,8 @@ export async function resolveConfiguredBill(
     }
     const kind = adjustment.kind as BillAdjustment['kind'];
     const amountSen = kind === 'rounding'
-      ? parseSignedRM(adjustment.amount)
-      : parseRM(adjustment.amount);
+      ? requireSignedAmountInput(adjustment.amount)
+      : requireAmountInput(adjustment.amount);
     let distribution: AdjustmentDistribution;
     switch (adjustment.method) {
       case 'proportional':
@@ -312,7 +305,7 @@ export async function resolveConfiguredBill(
           method: 'manual',
           amountsSen: Object.fromEntries(
             Object.entries(adjustment.manualAmounts).map(([id, amount]) => (
-              [id, parseRM(amount)]
+              [id, requireAmountInput(amount)]
             )),
           ),
         };

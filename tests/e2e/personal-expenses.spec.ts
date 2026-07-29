@@ -22,7 +22,7 @@ test('records and reports a searchable backdated personal expense', async ({
   const expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
     .locator('..')
     .locator('form');
-  await expenseForm.getByLabel('Amount').fill('RM12.50');
+  await expenseForm.getByLabel('Amount').fill('12.50');
   await expenseForm.getByLabel('Description').fill('Backdated lunch');
   await expenseForm.getByLabel('Merchant').fill('Kopitiam');
   await expenseForm.getByLabel('Transaction date').fill('2026-06-30');

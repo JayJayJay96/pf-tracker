@@ -9,6 +9,11 @@ import {
   type ConfiguredResolutionInput,
 } from '../../../src/features/bills/actions';
 import { createSharedBillRepository } from '../../../src/features/bills/supabase-repository';
+import {
+  failed,
+  type FormResult,
+  toFormResult,
+} from '../../../src/features/forms/result';
 import { requireCurrentUserId } from '../../../src/lib/auth/current-user';
 import { createClient } from '../../../src/lib/supabase/server';
 
@@ -28,24 +33,52 @@ function revalidateSharedBills(): void {
   revalidatePath('/');
 }
 
-export async function createFriendAction(formData: FormData): Promise<void> {
-  const { repository, userId } = await context();
-  await createFriend(repository, userId, value(formData, 'name'));
-  revalidatePath('/shared-bills');
+/** Reports the outcome in the form instead of throwing into the error boundary. */
+async function submit(
+  run: () => Promise<void>,
+  revalidate: () => void,
+  fallbackMessage: string,
+): Promise<FormResult> {
+  const result = await toFormResult(run, fallbackMessage);
+  if (result.status === 'success') {
+    revalidate();
+  }
+  return result;
 }
 
-export async function createBillAction(formData: FormData): Promise<void> {
+export async function createFriendAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
   const { repository, userId } = await context();
-  await createUnresolvedBill(repository, userId, {
-    amount: value(formData, 'amount'),
-    description: value(formData, 'description'),
-    transactionDate: value(formData, 'transactionDate'),
-    paymentMethod: value(formData, 'paymentMethod'),
-  });
-  revalidateSharedBills();
+  return submit(
+    () => createFriend(repository, userId, value(formData, 'name')),
+    () => revalidatePath('/shared-bills'),
+    'That friend could not be added.',
+  );
 }
 
-export async function resolveBillAction(formData: FormData): Promise<void> {
+export async function createBillAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
+  const { repository, userId } = await context();
+  return submit(
+    () => createUnresolvedBill(repository, userId, {
+      amount: value(formData, 'amount'),
+      description: value(formData, 'description'),
+      transactionDate: value(formData, 'transactionDate'),
+      paymentMethod: value(formData, 'paymentMethod'),
+    }),
+    revalidateSharedBills,
+    'That shared bill could not be saved.',
+  );
+}
+
+export async function resolveBillAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
   const { repository, userId } = await context();
   let configuration: ConfiguredResolutionInput;
   try {
@@ -53,8 +86,11 @@ export async function resolveBillAction(formData: FormData): Promise<void> {
       value(formData, 'configuration'),
     ) as ConfiguredResolutionInput;
   } catch {
-    throw new Error('Invalid shared bill resolution');
+    return failed('That allocation could not be read. Review the split and try again.');
   }
-  await resolveConfiguredBill(repository, userId, configuration);
-  revalidateSharedBills();
+  return submit(
+    () => resolveConfiguredBill(repository, userId, configuration),
+    revalidateSharedBills,
+    'That allocation could not be saved.',
+  );
 }

@@ -11,6 +11,7 @@ import {
   type PlanTemplateInput,
 } from '../../../src/features/plan/actions';
 import { createPlanRepository } from '../../../src/features/plan/supabase-repository';
+import { type FormResult, toFormResult } from '../../../src/features/forms/result';
 import { requireCurrentUserId } from '../../../src/lib/auth/current-user';
 import { generateMonthlyPlan } from '../../../src/lib/supabase/monthly-plan';
 import { createClient } from '../../../src/lib/supabase/server';
@@ -48,48 +49,99 @@ async function authorizedPlanContext() {
   return { client, userId, repository: createPlanRepository(client) };
 }
 
-export async function createTemplateAction(formData: FormData): Promise<void> {
-  const { repository, userId } = await authorizedPlanContext();
-  await createPlanTemplate(repository, userId, readTemplateInput(formData));
-  revalidatePath('/plan');
+/** Reports the outcome in the form instead of throwing into the error boundary. */
+async function submit(
+  run: () => Promise<void>,
+  revalidate: () => void,
+  fallbackMessage: string,
+): Promise<FormResult> {
+  const result = await toFormResult(run, fallbackMessage);
+  if (result.status === 'success') {
+    revalidate();
+  }
+  return result;
 }
 
-export async function updateTemplateAction(formData: FormData): Promise<void> {
+export async function createTemplateAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
   const { repository, userId } = await authorizedPlanContext();
-  await updatePlanTemplate(
-    repository,
-    userId,
-    readString(formData, 'templateId'),
-    readTemplateInput(formData),
+  return submit(
+    () => createPlanTemplate(repository, userId, readTemplateInput(formData)),
+    () => revalidatePath('/plan'),
+    'That recurring item could not be saved.',
   );
-  revalidatePath('/plan');
-  revalidatePath('/');
 }
 
-export async function archiveTemplateAction(formData: FormData): Promise<void> {
+export async function updateTemplateAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
   const { repository, userId } = await authorizedPlanContext();
-  await archivePlanTemplate(repository, userId, readString(formData, 'templateId'));
-  revalidatePath('/plan');
+  return submit(
+    () => updatePlanTemplate(
+      repository,
+      userId,
+      readString(formData, 'templateId'),
+      readTemplateInput(formData),
+    ),
+    () => {
+      revalidatePath('/plan');
+      revalidatePath('/');
+    },
+    'That recurring item could not be saved.',
+  );
 }
 
-export async function generateMonthAction(formData: FormData): Promise<void> {
+export async function archiveTemplateAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
+  const { repository, userId } = await authorizedPlanContext();
+  return submit(
+    () => archivePlanTemplate(repository, userId, readString(formData, 'templateId')),
+    () => revalidatePath('/plan'),
+    'That item could not be archived.',
+  );
+}
+
+export async function generateMonthAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
   const { client } = await authorizedPlanContext();
-  await generateMonthlyPlan(client, {
-    periodStart: readString(formData, 'periodStart'),
-  });
-  revalidatePath('/plan');
-  revalidatePath('/');
+  return submit(
+    async () => {
+      await generateMonthlyPlan(client, {
+        periodStart: readString(formData, 'periodStart'),
+      });
+    },
+    () => {
+      revalidatePath('/plan');
+      revalidatePath('/');
+    },
+    'That month could not be generated.',
+  );
 }
 
-export async function updateEntryAction(formData: FormData): Promise<void> {
+export async function updateEntryAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
   const { repository, userId } = await authorizedPlanContext();
-  await updatePlanEntry(
-    repository,
-    userId,
-    readString(formData, 'entryId'),
-    readEntryInput(formData),
+  return submit(
+    () => updatePlanEntry(
+      repository,
+      userId,
+      readString(formData, 'entryId'),
+      readEntryInput(formData),
+    ),
+    () => {
+      revalidatePath('/plan');
+      revalidatePath('/');
+      revalidatePath('/reports');
+    },
+    'That entry could not be saved.',
   );
-  revalidatePath('/plan');
-  revalidatePath('/');
-  revalidatePath('/reports');
 }

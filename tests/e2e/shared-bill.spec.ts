@@ -18,7 +18,7 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   await categoryForm.getByRole('button', { name: 'Add category' }).click();
   const expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
     .locator('..').locator('form');
-  await expenseForm.getByLabel('Amount').fill('RM4.25');
+  await expenseForm.getByLabel('Amount').fill('4.25');
   await expenseForm.getByLabel('Description').fill('Personal snack');
   await expenseForm.getByLabel('Merchant').fill('Corner Market');
   await expenseForm.getByLabel('Transaction date').fill('2026-07-04');
@@ -37,7 +37,7 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
 
   const billForm = page.getByRole('heading', { name: 'Record shared bill' })
     .locator('..').locator('form');
-  await billForm.getByLabel('Amount').fill('RM18.00');
+  await billForm.getByLabel('Amount').fill('18.00');
   await billForm.getByLabel('Description').fill('Shared lunch');
   await billForm.getByLabel('Transaction date').fill('2026-07-03');
   await billForm.getByLabel('Payment method').selectOption('tng');
@@ -58,33 +58,33 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   await unresolvedBill.getByLabel('Include Alex').check();
   await unresolvedBill.getByLabel('Include Bee').check();
   await unresolvedBill.getByLabel('Item 1 description').fill('Pizza');
-  await unresolvedBill.getByLabel('Item 1 amount').fill('RM10.01');
-  await unresolvedBill.getByLabel('Item 1 discount').fill('RM0.01');
+  await unresolvedBill.getByLabel('Item 1 amount').fill('10.01');
+  await unresolvedBill.getByLabel('Item 1 discount').fill('0.01');
   await unresolvedBill.getByLabel('Item 1 assign Alex').check();
   await unresolvedBill.getByLabel('Item 1 assign Bee').check();
 
   await unresolvedBill.getByRole('button', { name: 'Add item' }).click();
   await unresolvedBill.getByLabel('Item 2 description').fill('Dessert');
-  await unresolvedBill.getByLabel('Item 2 amount').fill('RM6.00');
+  await unresolvedBill.getByLabel('Item 2 amount').fill('6.00');
   await unresolvedBill.getByLabel('Item 2 assign Alex').check();
 
   for (let index = 0; index < 5; index += 1) {
     await unresolvedBill.getByRole('button', { name: 'Add adjustment' }).click();
   }
-  await unresolvedBill.getByLabel('Adjustment 1 amount').fill('RM1.00');
+  await unresolvedBill.getByLabel('Adjustment 1 amount').fill('1.00');
 
-  await unresolvedBill.getByLabel('Adjustment 2 amount').fill('RM0.25');
+  await unresolvedBill.getByLabel('Adjustment 2 amount').fill('0.25');
   await unresolvedBill.getByLabel('Adjustment 2 distribution').selectOption('manual');
-  await unresolvedBill.getByLabel('Adjustment 2 You manual amount').fill('RM0.25');
+  await unresolvedBill.getByLabel('Adjustment 2 You manual amount').fill('0.25');
 
   await unresolvedBill.getByLabel('Adjustment 3 type').selectOption('service');
-  await unresolvedBill.getByLabel('Adjustment 3 amount').fill('RM1.60');
+  await unresolvedBill.getByLabel('Adjustment 3 amount').fill('1.60');
 
   await unresolvedBill.getByLabel('Adjustment 4 type').selectOption('tax');
-  await unresolvedBill.getByLabel('Adjustment 4 amount').fill('RM1.66');
+  await unresolvedBill.getByLabel('Adjustment 4 amount').fill('1.66');
 
   await unresolvedBill.getByLabel('Adjustment 5 type').selectOption('rounding');
-  await unresolvedBill.getByLabel('Adjustment 5 amount').fill('-RM0.01');
+  await unresolvedBill.getByLabel('Adjustment 5 amount').fill('-0.01');
   await unresolvedBill.getByLabel('Adjustment 5 distribution').selectOption('user');
 
   const review = unresolvedBill.getByRole('heading', { name: 'Allocation review' })

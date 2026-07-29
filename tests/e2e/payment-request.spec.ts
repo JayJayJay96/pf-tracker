@@ -18,8 +18,8 @@ test('snapshots two bills, leaves a later bill unrequested, and settles without 
   await friendForm.getByLabel('Friend name').fill('Alex');
   await friendForm.getByRole('button', { name: 'Add friend' }).click();
 
-  await createAndResolveBill(page, 'Dinner', 'RM20.00', '2026-07-10');
-  await createAndResolveBill(page, 'Movie', 'RM10.00', '2026-07-14');
+  await createAndResolveBill(page, 'Dinner', '20.00', '2026-07-10');
+  await createAndResolveBill(page, 'Movie', '10.00', '2026-07-14');
 
   await page.goto('/friends');
   await expect(page.getByRole('listitem').filter({ hasText: 'Alex' }))
@@ -45,7 +45,7 @@ test('snapshots two bills, leaves a later bill unrequested, and settles without 
   await expect(summary).toHaveValue(/Total: RM15.00/);
 
   await page.goto('/shared-bills');
-  await createAndResolveBill(page, 'Coffee', 'RM8.00', '2026-07-16');
+  await createAndResolveBill(page, 'Coffee', '8.00', '2026-07-16');
 
   await page.goto(requestUrl);
   await expect(summary).toHaveValue(/Total: RM15.00/);

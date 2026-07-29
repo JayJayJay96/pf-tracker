@@ -10,6 +10,9 @@
   --blue: #55c7ff;
   --blue-soft: rgba(85, 199, 255, 0.12);
   --warning: #f7bf5b;
+  --danger: #ff9a9a;
+  --danger-line: rgba(255, 122, 122, 0.55);
+  --danger-soft: rgba(255, 122, 122, 0.12);
 }
 
 * {
@@ -51,9 +54,16 @@ button {
   padding: 0.7rem 0.95rem;
 }
 
-button:hover {
+button:hover:not(:disabled) {
   border-color: var(--blue);
   background: rgba(85, 199, 255, 0.18);
+}
+
+button:disabled {
+  border-color: rgba(142, 166, 184, 0.35);
+  background: transparent;
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
@@ -74,6 +84,135 @@ textarea {
 input[type="checkbox"],
 input[type="radio"] {
   accent-color: var(--blue);
+}
+
+/*
+ * Field primitives. Declared at the top level on purpose: the block further
+ * down keyed on `main:not(.dashboard-shell)` never reaches the auth routes, so
+ * anything scoped there is invisible on sign-in. Phase 2 moves all of this into
+ * real components and deletes that negated-ancestor block.
+ */
+.field {
+  display: grid;
+  flex: 1 1 190px;
+  gap: 0.35rem;
+}
+
+.field-label {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.field-hint,
+.field-error {
+  font-size: 0.8rem;
+}
+
+.field-hint {
+  color: var(--muted);
+}
+
+.field-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.money-field {
+  display: flex;
+  width: 100%;
+}
+
+.money-prefix {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px 0 0 8px;
+  border-right: 0;
+  background: rgba(4, 11, 18, 0.9);
+  color: var(--muted);
+  display: flex;
+  flex: 0 0 auto;
+  padding: 0 0.65rem;
+}
+
+/*
+ * Matches the specificity of the base input rule above (0,3,1), which would
+ * otherwise win on border-radius. Phase 2 removes the need for this.
+ */
+.money-field input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) {
+  border-radius: 0 8px 8px 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.money-field input[aria-invalid="true"],
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--danger-line);
+}
+
+.form-error-summary {
+  border: 1px solid var(--danger-line);
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  margin: 0.5rem 0;
+  padding: 0.7rem 0.85rem;
+}
+
+.optional-fields {
+  flex-basis: 100%;
+}
+
+.optional-fields summary {
+  color: var(--blue);
+  cursor: pointer;
+  padding: 0.35rem 0;
+}
+
+.form-status:empty {
+  display: none;
+}
+
+.form-status {
+  flex-basis: 100%;
+}
+
+.form-success-summary {
+  border: 1px solid rgba(111, 227, 176, 0.5);
+  border-radius: 8px;
+  background: rgba(111, 227, 176, 0.1);
+  color: #8ff0c2;
+  margin: 0.5rem 0;
+  padding: 0.7rem 0.85rem;
+}
+
+.confirm-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.confirm-description {
+  color: var(--danger);
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.danger-button {
+  border-color: var(--danger-line);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.danger-button:hover {
+  border-color: var(--danger);
+  background: rgba(255, 122, 122, 0.2);
 }
 
 .app-header {

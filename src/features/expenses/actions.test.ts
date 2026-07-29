@@ -84,21 +84,92 @@ describe('personal expense actions', () => {
   });
 
   it.each([
-    [{ ...validInput, amount: 'RM0.00' }, 'zero amount'],
-    [{ ...validInput, description: ' ' }, 'blank description'],
-    [{ ...validInput, transactionDate: '2026-02-30' }, 'invalid date'],
-    [{ ...validInput, categoryId: '' }, 'missing category'],
-    [{ ...validInput, paymentMethod: 'card' }, 'unsupported payment method'],
-  ])('rejects %s before writing', async (input) => {
+    ['12.50', 1250],
+    ['12.5', 1250],
+    ['12', 1200],
+    ['1,250.75', 125075],
+    ['RM12.50', 1250],
+  ])('accepts %s typed without an RM prefix', async (amount, expectedSen) => {
+    let inserted: { amount_sen?: number } | undefined;
+
+    const result = await createExpense(repository({
+      insertExpense: async (expense) => {
+        inserted = expense;
+        return { error: null };
+      },
+    }), 'user-a', { ...validInput, amount });
+
+    expect(result.status).toBe('success');
+    expect(inserted).toMatchObject({ amount_sen: expectedSen });
+  });
+
+  it.each([
+    [{ ...validInput, amount: '0.00' }, 'amount', 'Enter an amount greater than zero'],
+    [{ ...validInput, amount: 'twelve' }, 'amount', 'Enter a number, like 12.50'],
+    [
+      { ...validInput, amount: '12.505' },
+      'amount',
+      'Use at most 2 decimal places, like 12.50',
+    ],
+    [{ ...validInput, description: ' ' }, 'description', 'Enter a description'],
+    [
+      { ...validInput, transactionDate: '2026-02-30' },
+      'transactionDate',
+      'Enter a valid date',
+    ],
+    [{ ...validInput, categoryId: '' }, 'categoryId', 'Choose a category'],
+    [
+      { ...validInput, paymentMethod: 'card' },
+      'paymentMethod',
+      'Choose a payment method',
+    ],
+  ])('reports the problem against its own field without writing', async (
+    input,
+    field,
+    message,
+  ) => {
     let writes = 0;
 
-    await expect(createExpense(repository({
+    const result = await createExpense(repository({
       insertExpense: async () => {
         writes += 1;
         return { error: null };
       },
-    }), 'user-a', input)).rejects.toThrow('Invalid personal expense');
+    }), 'user-a', input);
+
+    // A rejection is a value, not a thrown error: throwing would reach the route
+    // error boundary and discard everything the person had typed.
+    expect(result).toMatchObject({
+      status: 'error',
+      fieldErrors: { [field]: message },
+    });
     expect(writes).toBe(0);
+  });
+
+  it('reports every invalid field at once', async () => {
+    const result = await createExpense(repository(), 'user-a', {
+      ...validInput,
+      amount: '',
+      description: '',
+      categoryId: '',
+    });
+
+    expect(result).toMatchObject({
+      status: 'error',
+      fieldErrors: {
+        amount: 'Enter an amount',
+        description: 'Enter a description',
+        categoryId: 'Choose a category',
+      },
+    });
+  });
+
+  it('surfaces a write failure as a form-level message', async () => {
+    const result = await createExpense(repository({
+      insertExpense: async () => ({ error: { message: 'insert failed' } }),
+    }), 'user-a', validInput);
+
+    expect(result).toEqual({ status: 'error', message: 'insert failed' });
   });
 
   it('updates only the authenticated owner transaction', async () => {

@@ -38,8 +38,10 @@ describe('personal expense view', () => {
     expect(page).toContain('2026-06-30');
     expect(page).toContain('Recorded');
     expect(page).toContain('Edit Backdated lunch');
-    expect(page).toContain('Delete Backdated lunch?');
-    expect(page).toContain('Confirm permanent deletion');
+    // Deletion is armed by an explicit danger-styled button rather than hidden
+    // behind a <details> whose summary was itself the confirmation question.
+    expect(page).toContain('Delete Backdated lunch');
+    expect(page).toContain('danger-button');
     expect(page).toContain('Search description or merchant');
     expect(page).not.toContain('Shared expense');
   });

@@ -20,7 +20,7 @@ test('restores an owner draft, reports by transaction date, and exports privatel
 
   let expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
     .locator('..').locator('form');
-  await expenseForm.getByLabel('Amount').fill('RM12.50');
+  await expenseForm.getByLabel('Amount').fill('12.50');
   await expenseForm.getByLabel('Description').fill('Backdated draft lunch');
   await expenseForm.getByLabel('Transaction date').fill('2026-06-30');
   await expenseForm.getByLabel('Category').selectOption({ label: 'Food' });
@@ -28,7 +28,7 @@ test('restores an owner draft, reports by transaction date, and exports privatel
 
   expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
     .locator('..').locator('form');
-  await expect(expenseForm.getByLabel('Amount')).toHaveValue('RM12.50');
+  await expect(expenseForm.getByLabel('Amount')).toHaveValue('12.50');
   await expect(expenseForm.getByLabel('Description')).toHaveValue('Backdated draft lunch');
   await expenseForm.getByRole('button', { name: 'Save expense' }).click();
   await expect(page.getByText('Backdated draft lunch', { exact: true }).first()).toBeVisible();

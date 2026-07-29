@@ -1,9 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { ExpenseWriteRepository } from './actions';
+import type { EntryDefaultsRepository } from './entry-defaults';
 import type { ExpenseReadRepository } from './queries';
 
-export type ExpenseRepository = ExpenseWriteRepository & ExpenseReadRepository;
+export type ExpenseRepository = ExpenseWriteRepository
+  & ExpenseReadRepository
+  & EntryDefaultsRepository;
 
 /** Constrains every expense operation to the verified owner at the query boundary. */
 export function createExpenseRepository(client: SupabaseClient): ExpenseRepository {
@@ -36,6 +39,25 @@ export function createExpenseRepository(client: SupabaseClient): ExpenseReposito
       const { data, error } = await query
         .order('transaction_date', { ascending: false })
         .order('recorded_at', { ascending: false });
+      return { data, error };
+    },
+    async getProfileDefaults(userId) {
+      const { data, error } = await client
+        .from('profiles')
+        .select('default_payment_method')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return { data, error };
+    },
+    async getLastExpenseCategoryId(userId) {
+      const { data, error } = await client
+        .from('transactions')
+        .select('category_id')
+        .eq('user_id', userId)
+        .eq('transaction_type', 'personal_expense')
+        .order('recorded_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
       return { data, error };
     },
     async insertCategory(category) {

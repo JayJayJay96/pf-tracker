@@ -8,6 +8,11 @@ import {
   settlePaymentRequest,
 } from '../../../src/features/friends/actions';
 import { createFriendRepository } from '../../../src/features/friends/supabase-repository';
+import {
+  failed,
+  type FormResult,
+  toFormResult,
+} from '../../../src/features/forms/result';
 import { requireCurrentUserId } from '../../../src/lib/auth/current-user';
 import { createClient } from '../../../src/lib/supabase/server';
 
@@ -22,38 +27,49 @@ async function context() {
   return { userId, repository: createFriendRepository(client) };
 }
 
-export async function createPaymentRequestAction(formData: FormData): Promise<void> {
+export async function createPaymentRequestAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
   const { repository, userId } = await context();
   const friendId = value(formData, 'friendId');
-  const requestId = await createPaymentRequest(repository, userId, {
-    friendId,
-    portionIds: formData.getAll('portionIds').filter(
-      (portionId): portionId is string => typeof portionId === 'string',
-    ),
-    requestDate: value(formData, 'requestDate'),
-    note: value(formData, 'note'),
-  });
-  revalidatePath('/friends');
-  revalidatePath(`/friends/${friendId}`);
-  redirect(`/friends/${friendId}/requests/${requestId}`);
+  // toFormResult rethrows the redirect signal, so the navigation still happens.
+  return toFormResult(async () => {
+    const requestId = await createPaymentRequest(repository, userId, {
+      friendId,
+      portionIds: formData.getAll('portionIds').filter(
+        (portionId): portionId is string => typeof portionId === 'string',
+      ),
+      requestDate: value(formData, 'requestDate'),
+      note: value(formData, 'note'),
+    });
+    revalidatePath('/friends');
+    revalidatePath(`/friends/${friendId}`);
+    redirect(`/friends/${friendId}/requests/${requestId}`);
+  }, 'That payment request could not be created.');
 }
 
 export async function transitionPaymentRequestAction(
+  _previous: FormResult,
   formData: FormData,
-): Promise<void> {
+): Promise<FormResult> {
   const { repository, userId } = await context();
   const requestId = value(formData, 'requestId');
   const status = value(formData, 'status');
   if (!['paid', 'cancelled', 'forgiven'].includes(status)) {
-    throw new Error('Invalid payment request');
+    return failed('Choose whether this request was paid, cancelled, or forgiven.');
   }
-  await settlePaymentRequest(repository, userId, {
+  const result = await toFormResult(() => settlePaymentRequest(repository, userId, {
     requestId,
     status: status as 'paid' | 'cancelled' | 'forgiven',
     paidAmount: value(formData, 'paidAmount'),
     occurredOn: value(formData, 'occurredOn'),
-  });
-  revalidatePath('/friends');
-  revalidatePath('/friends/[friendId]', 'page');
-  revalidatePath('/friends/[friendId]/requests/[requestId]', 'page');
+  }), 'That payment request could not be updated.');
+
+  if (result.status === 'success') {
+    revalidatePath('/friends');
+    revalidatePath('/friends/[friendId]', 'page');
+    revalidatePath('/friends/[friendId]/requests/[requestId]', 'page');
+  }
+  return result;
 }

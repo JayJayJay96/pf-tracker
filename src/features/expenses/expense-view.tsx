@@ -1,16 +1,31 @@
 import Link from 'next/link';
 
 import { formatRM } from '../../domain/money';
-import { DraftForm } from '../forms/draft-form';
-import type { Expense, ExpenseCategory, ExpenseFilters } from './types';
+import { ActionForm } from '../forms/action-form';
+import { ConfirmSubmit } from '../forms/confirm-submit';
+import { MoneyInput } from '../forms/money-input';
+import type { FormResult } from '../forms/result';
+import type {
+  Expense,
+  ExpenseCategory,
+  ExpenseFilters,
+  PaymentMethod,
+} from './types';
 
-type FormAction = (formData: FormData) => void | Promise<void>;
+type FormAction = (
+  previous: FormResult,
+  formData: FormData,
+) => Promise<FormResult>;
 
 type ExpenseViewProps = {
   categories: ExpenseCategory[];
   expenses: Expense[];
   filters: ExpenseFilters;
   defaultTransactionDate?: string;
+  /** Owner's configured default, from profiles.default_payment_method. */
+  defaultPaymentMethod?: PaymentMethod;
+  /** Category of the most recent expense, so repeat entries need no choosing. */
+  defaultCategoryId?: string;
   userId?: string;
   actions?: {
     createCategory: FormAction;
@@ -24,31 +39,26 @@ function ExpenseFields({
   categories,
   expense,
   defaultTransactionDate,
+  defaultPaymentMethod = 'tng',
+  defaultCategoryId,
 }: {
   categories: ExpenseCategory[];
   expense?: Expense;
   defaultTransactionDate?: string;
+  defaultPaymentMethod?: PaymentMethod;
+  defaultCategoryId?: string;
 }) {
   return (
     <>
-      <label>
-        Amount
-        <input
-          name="amount"
-          inputMode="decimal"
-          pattern="RM(?:0|[1-9][0-9]*)\.[0-9]{2}"
-          placeholder="RM0.00"
-          required
-          defaultValue={expense ? formatRM(expense.amountSen) : undefined}
-        />
-      </label>
+      <MoneyInput
+        name="amount"
+        label="Amount"
+        defaultSen={expense ? expense.amountSen : null}
+        required
+      />
       <label>
         Description
         <input name="description" required defaultValue={expense?.description} />
-      </label>
-      <label>
-        Merchant
-        <input name="merchant" defaultValue={expense?.merchant ?? ''} />
       </label>
       <label>
         Transaction date
@@ -61,7 +71,11 @@ function ExpenseFields({
       </label>
       <label>
         Category
-        <select name="categoryId" required defaultValue={expense?.categoryId}>
+        <select
+          name="categoryId"
+          required
+          defaultValue={expense?.categoryId ?? defaultCategoryId ?? ''}
+        >
           <option value="">Select category</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>{category.name}</option>
@@ -70,15 +84,26 @@ function ExpenseFields({
       </label>
       <label>
         Payment method
-        <select name="paymentMethod" required defaultValue={expense?.paymentMethod ?? 'tng'}>
+        <select
+          name="paymentMethod"
+          required
+          defaultValue={expense?.paymentMethod ?? defaultPaymentMethod}
+        >
           <option value="tng">Touch &apos;n Go</option>
           <option value="cash">Cash</option>
         </select>
       </label>
-      <label>
-        Notes
-        <textarea name="notes" defaultValue={expense?.notes ?? ''} />
-      </label>
+      <details className="optional-fields">
+        <summary>Add merchant or notes</summary>
+        <label>
+          Merchant
+          <input name="merchant" defaultValue={expense?.merchant ?? ''} />
+        </label>
+        <label>
+          Notes
+          <textarea name="notes" defaultValue={expense?.notes ?? ''} />
+        </label>
+      </details>
     </>
   );
 }
@@ -96,6 +121,8 @@ export function ExpenseView({
   expenses,
   filters,
   defaultTransactionDate,
+  defaultPaymentMethod,
+  defaultCategoryId,
   userId,
   actions,
 }: ExpenseViewProps) {
@@ -111,36 +138,48 @@ export function ExpenseView({
 
       <section aria-labelledby="add-expense-heading">
         <h2 id="add-expense-heading">Add personal expense</h2>
-        {userId ? <DraftForm
+        {categories.length === 0 ? (
+          <p className="notice-panel">
+            Add your first category below, then this form unlocks.
+          </p>
+        ) : null}
+        <ActionForm
           action={actions?.create}
           userId={userId}
-          formId="personal-expense"
+          formId={userId ? 'personal-expense' : undefined}
+          successMessage="Expense saved."
+          clearOnSuccess={['amount', 'description', 'merchant', 'notes']}
         >
           <ExpenseFields
             categories={categories}
             defaultTransactionDate={defaultTransactionDate}
+            defaultPaymentMethod={defaultPaymentMethod}
+            defaultCategoryId={defaultCategoryId}
           />
-          <button type="submit" disabled={categories.length === 0}>Save expense</button>
-        </DraftForm> : (
-          <form action={actions?.create}>
-            <ExpenseFields
-              categories={categories}
-              defaultTransactionDate={defaultTransactionDate}
-            />
-            <button type="submit" disabled={categories.length === 0}>Save expense</button>
-          </form>
-        )}
+          <button
+            type="submit"
+            disabled={categories.length === 0}
+            aria-describedby={categories.length === 0 ? 'save-expense-blocked' : undefined}
+          >
+            Save expense
+          </button>
+          {categories.length === 0 ? (
+            <span className="field-hint" id="save-expense-blocked">
+              A category is required before an expense can be saved.
+            </span>
+          ) : null}
+        </ActionForm>
       </section>
 
       <section aria-labelledby="categories-heading">
         <h2 id="categories-heading">Expense categories</h2>
-        <form action={actions?.createCategory}>
-          <label>
-            New category name
+        <ActionForm action={actions?.createCategory} successMessage="Category added.">
+          <label className="field">
+            <span className="field-label">New category name</span>
             <input name="name" required />
           </label>
           <button type="submit">Add category</button>
-        </form>
+        </ActionForm>
         {categories.length === 0 ? <p>Add a category before recording an expense.</p> : (
           <p>{categories.map((category) => category.name).join(', ')}</p>
         )}
@@ -198,20 +237,29 @@ export function ExpenseView({
                 </p>
                 <details>
                   <summary>Edit {expense.description}</summary>
-                  <form action={actions?.update}>
+                  <ActionForm
+                    action={actions?.update}
+                    resetOnSuccess={false}
+                    successMessage="Changes saved."
+                  >
                     <input type="hidden" name="expenseId" value={expense.id} />
-                    <ExpenseFields categories={categories} expense={expense} />
+                    <ExpenseFields
+                      categories={categories}
+                      expense={expense}
+                      defaultTransactionDate={defaultTransactionDate}
+                    />
                     <button type="submit">Save expense changes</button>
-                  </form>
+                  </ActionForm>
                 </details>
-                <details>
-                  <summary>Delete {expense.description}?</summary>
-                  <p>This permanently removes the expense and updates its historical month.</p>
-                  <form action={actions?.delete}>
-                    <input type="hidden" name="expenseId" value={expense.id} />
-                    <button type="submit">Confirm permanent deletion</button>
-                  </form>
-                </details>
+                <ActionForm action={actions?.delete} resetOnSuccess={false}>
+                  <input type="hidden" name="expenseId" value={expense.id} />
+                  <ConfirmSubmit
+                    label={`Delete ${expense.description}`}
+                    description={'This permanently removes the expense and updates its '
+                      + 'historical month.'}
+                    confirmLabel="Yes, delete permanently"
+                  />
+                </ActionForm>
               </li>
             ))}
           </ul>

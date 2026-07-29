@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
+import { getEntryDefaults } from '../../../src/features/expenses/entry-defaults';
 import { ExpenseView } from '../../../src/features/expenses/expense-view';
 import { getExpenseHistory } from '../../../src/features/expenses/queries';
 import { createExpenseRepository } from '../../../src/features/expenses/supabase-repository';
@@ -44,11 +45,11 @@ export default async function ExpensesPage({ searchParams }: ExpensePageProps) {
   const client = await createClient();
   const userId = await getCurrentUserId(() => client.auth.getClaims());
   if (!userId) redirect('/auth/sign-in');
-  const history = await getExpenseHistory(
-    createExpenseRepository(client),
-    userId,
-    filters,
-  );
+  const repository = createExpenseRepository(client);
+  const [history, entryDefaults] = await Promise.all([
+    getExpenseHistory(repository, userId, filters),
+    getEntryDefaults(repository, userId),
+  ]);
 
   return (
     <ExpenseView
@@ -56,6 +57,8 @@ export default async function ExpensesPage({ searchParams }: ExpensePageProps) {
       expenses={history.expenses}
       filters={filters}
       defaultTransactionDate={todayInMalaysia()}
+      defaultPaymentMethod={entryDefaults.paymentMethod}
+      defaultCategoryId={entryDefaults.categoryId}
       userId={userId}
       actions={{
         createCategory: createCategoryAction,

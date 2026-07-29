@@ -1,10 +1,17 @@
 import Link from 'next/link';
 
 import { formatRM } from '../../domain/money';
+import { MoneyInput } from '../forms/money-input';
+import type { FormResult } from '../forms/result';
+import { ActionForm } from '../forms/action-form';
+import { ConfirmSubmit } from '../forms/confirm-submit';
 import type { ISODate } from '../../domain/periods';
 import type { PlanEntry, PlanTemplate } from './types';
 
-type FormAction = (formData: FormData) => void | Promise<void>;
+type FormAction = (
+  previous: FormResult,
+  formData: FormData,
+) => Promise<FormResult>;
 
 type MonthlyPlanViewProps = {
   periodStart: ISODate;
@@ -65,17 +72,12 @@ function TemplateFields({
           </select>
         </label>
       )}
-      <label>
-        Amount
-        <input
-          name="amount"
-          inputMode="decimal"
-          pattern="RM(?:0|[1-9][0-9]*)\.[0-9]{2}"
-          placeholder="RM0.00"
-          required
-          defaultValue={template ? formatRM(template.amountSen) : undefined}
-        />
-      </label>
+      <MoneyInput
+        name="amount"
+        label="Amount"
+        defaultSen={template ? template.amountSen : null}
+        required
+      />
       <label>
         Money-in or due day
         <input
@@ -141,19 +143,24 @@ function TemplateList({
             <>
               <details>
                 <summary>Edit {template.name}</summary>
-                <form action={actions?.update}>
+                <ActionForm action={actions?.update}>
                   <input type="hidden" name="templateId" value={template.id} />
                   <TemplateFields
                     template={template}
                     fixedEntryType={fixedEntryType}
                   />
                   <button type="submit">Save recurring item</button>
-                </form>
+                </ActionForm>
               </details>
-              <form action={actions?.archive}>
+              <ActionForm action={actions?.archive} resetOnSuccess={false}>
                 <input type="hidden" name="templateId" value={template.id} />
-                <button type="submit">Archive</button>
-              </form>
+                <ConfirmSubmit
+                  label={`Archive ${template.name}`}
+                  description={'This stops the item carrying into future months. '
+                    + 'Past months keep their generated entries.'}
+                  confirmLabel="Yes, archive it"
+                />
+              </ActionForm>
             </>
           ) : null}
         </li>
@@ -192,10 +199,10 @@ export function MonthlyPlanView({
           actions={actions}
           fixedEntryType="income"
         />
-        <form action={actions?.create}>
+        <ActionForm action={actions?.create}>
           <TemplateFields fixedEntryType="income" />
           <button type="submit">Add income</button>
-        </form>
+        </ActionForm>
       </section>
 
       <section aria-labelledby="commitments-heading">
@@ -206,10 +213,10 @@ export function MonthlyPlanView({
           actions={actions}
           fixedEntryType="commitment"
         />
-        <form action={actions?.create}>
+        <ActionForm action={actions?.create}>
           <TemplateFields fixedEntryType="commitment" />
           <button type="submit">Add commitment</button>
-        </form>
+        </ActionForm>
       </section>
 
       <section aria-labelledby="allocations-heading">
@@ -219,10 +226,10 @@ export function MonthlyPlanView({
           emptyMessage="No savings or investment allocations yet."
           actions={actions}
         />
-        <form action={actions?.create}>
+        <ActionForm action={actions?.create}>
           <TemplateFields />
           <button type="submit">Add allocation</button>
-        </form>
+        </ActionForm>
       </section>
 
       <section aria-labelledby="month-heading">
@@ -239,10 +246,10 @@ export function MonthlyPlanView({
           </label>
           <button type="submit">View month</button>
         </form>
-        <form action={actions?.generate}>
+        <ActionForm action={actions?.generate}>
           <input type="hidden" name="periodStart" value={periodStart} />
           <button type="submit">Generate {label}</button>
-        </form>
+        </ActionForm>
       </section>
 
       <section aria-labelledby="snapshots-heading">
@@ -265,7 +272,7 @@ export function MonthlyPlanView({
                 {entry.entryType === 'income' || entry.entryType === 'commitment' ? (
                   <details>
                     <summary>Update actual</summary>
-                    <form action={actions?.updateEntry}>
+                    <ActionForm action={actions?.updateEntry}>
                       <input type="hidden" name="entryId" value={entry.id} />
                       <input type="hidden" name="entryType" value={entry.entryType} />
                       <label>
@@ -290,18 +297,11 @@ export function MonthlyPlanView({
                           )}
                         </select>
                       </label>
-                      <label>
-                        Actual amount
-                        <input
-                          name="actualAmount"
-                          inputMode="decimal"
-                          pattern="RM(?:0|[1-9][0-9]*)\.[0-9]{2}"
-                          placeholder="RM0.00"
-                          defaultValue={entry.actualAmountSen === null
-                            ? ''
-                            : formatRM(entry.actualAmountSen)}
-                        />
-                      </label>
+                      <MoneyInput
+                        name="actualAmount"
+                        label="Actual amount"
+                        defaultSen={entry.actualAmountSen}
+                      />
                       {entry.entryType === 'commitment' ? (
                         <label>
                           Paid date
@@ -317,7 +317,7 @@ export function MonthlyPlanView({
                         <textarea name="notes" defaultValue={entry.notes ?? ''} />
                       </label>
                       <button type="submit">Save entry actual</button>
-                    </form>
+                    </ActionForm>
                   </details>
                 ) : null}
               </li>

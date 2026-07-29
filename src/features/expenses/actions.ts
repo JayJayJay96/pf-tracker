@@ -1,5 +1,12 @@
-import { parseRM } from '../../domain/money';
+import { AmountInputError, requireAmountInput } from '../../domain/money';
 import { getCalendarMonth, type ISODate } from '../../domain/periods';
+import {
+  failed,
+  type FormFieldErrors,
+  type FormResult,
+  invalid,
+  succeeded,
+} from '../forms/result';
 import type { PaymentMethod } from './types';
 
 type WriteResult = {
@@ -47,35 +54,75 @@ export type ExpenseInput = {
   notes: string;
 };
 
-function requireIdentifier(value: string): void {
-  if (value.trim() === '') {
-    throw new Error('Invalid personal expense');
-  }
-}
-
 function optionalText(value: string): string | null {
   const normalized = value.trim();
   return normalized === '' ? null : normalized;
 }
 
-function parseExpenseInput(input: ExpenseInput): ExpenseValues {
+const FIELD_LABELS: Record<string, string> = {
+  amount: 'Amount',
+  description: 'Description',
+  transactionDate: 'Transaction date',
+  categoryId: 'Category',
+  paymentMethod: 'Payment method',
+};
+
+/** Joins field messages into one summary line for the top of the form. */
+export function summarizeFieldErrors(fieldErrors: FormFieldErrors): string {
+  return Object.entries(fieldErrors)
+    .map(([field, message]) => `${FIELD_LABELS[field] ?? field}: ${message}`)
+    .join(' ');
+}
+
+function readAmountField(raw: string, fieldErrors: FormFieldErrors): number | null {
   try {
-    const amountSen = parseRM(input.amount);
-    const description = input.description.trim();
-    const transactionDate = input.transactionDate as ISODate;
-    const paymentMethod = input.paymentMethod as PaymentMethod;
-
-    if (
-      amountSen === 0
-      || description === ''
-      || input.categoryId.trim() === ''
-      || !['tng', 'cash'].includes(paymentMethod)
-    ) {
-      throw new Error();
+    const amountSen = requireAmountInput(raw);
+    if (amountSen === 0) {
+      fieldErrors.amount = 'Enter an amount greater than zero';
+      return null;
     }
-    getCalendarMonth(transactionDate);
+    return amountSen;
+  } catch (error) {
+    fieldErrors.amount = error instanceof AmountInputError
+      ? error.message
+      : 'Enter an amount, like 12.50';
+    return null;
+  }
+}
 
-    return {
+type ValidatedExpense =
+  | { ok: true; values: ExpenseValues }
+  | { ok: false; fieldErrors: FormFieldErrors };
+
+function validateExpenseInput(input: ExpenseInput): ValidatedExpense {
+  const fieldErrors: FormFieldErrors = {};
+  const amountSen = readAmountField(input.amount, fieldErrors);
+  const description = input.description.trim();
+  const paymentMethod = input.paymentMethod as PaymentMethod;
+  const transactionDate = input.transactionDate as ISODate;
+
+  if (description === '') {
+    fieldErrors.description = 'Enter a description';
+  }
+  if (input.categoryId.trim() === '') {
+    fieldErrors.categoryId = 'Choose a category';
+  }
+  if (!['tng', 'cash'].includes(paymentMethod)) {
+    fieldErrors.paymentMethod = 'Choose a payment method';
+  }
+  try {
+    getCalendarMonth(transactionDate);
+  } catch {
+    fieldErrors.transactionDate = 'Enter a valid date';
+  }
+
+  if (amountSen === null || Object.keys(fieldErrors).length > 0) {
+    return { ok: false, fieldErrors };
+  }
+
+  return {
+    ok: true,
+    values: {
       amount_sen: amountSen,
       description,
       merchant: optionalText(input.merchant),
@@ -84,29 +131,27 @@ function parseExpenseInput(input: ExpenseInput): ExpenseValues {
       payment_method: paymentMethod,
       transaction_type: 'personal_expense',
       notes: optionalText(input.notes),
-    };
-  } catch {
-    throw new Error('Invalid personal expense');
-  }
+    },
+  };
 }
 
-function throwWriteError(result: WriteResult): void {
-  if (result.error) {
-    throw new Error(result.error.message);
-  }
+function writeResultToForm(result: WriteResult): FormResult {
+  return result.error ? failed(result.error.message) : succeeded();
 }
 
 export async function createExpenseCategory(
   repository: ExpenseWriteRepository,
   userId: string,
   nameInput: string,
-): Promise<void> {
-  requireIdentifier(userId);
+): Promise<FormResult> {
+  if (userId.trim() === '') {
+    return failed('Sign in again to add a category.');
+  }
   const name = nameInput.trim();
   if (name === '') {
-    throw new Error('Invalid expense category');
+    return invalid({ name: 'Enter a category name' }, 'Category name: Enter a category name');
   }
-  throwWriteError(await repository.insertCategory({
+  return writeResultToForm(await repository.insertCategory({
     user_id: userId,
     name,
     type: 'expense',
@@ -118,11 +163,17 @@ export async function createExpense(
   repository: ExpenseWriteRepository,
   userId: string,
   input: ExpenseInput,
-): Promise<void> {
-  requireIdentifier(userId);
-  throwWriteError(await repository.insertExpense({
+): Promise<FormResult> {
+  if (userId.trim() === '') {
+    return failed('Sign in again to save this expense.');
+  }
+  const validated = validateExpenseInput(input);
+  if (!validated.ok) {
+    return invalid(validated.fieldErrors, summarizeFieldErrors(validated.fieldErrors));
+  }
+  return writeResultToForm(await repository.insertExpense({
     user_id: userId,
-    ...parseExpenseInput(input),
+    ...validated.values,
   }));
 }
 
@@ -131,13 +182,18 @@ export async function updateExpense(
   userId: string,
   expenseId: string,
   input: ExpenseInput,
-): Promise<void> {
-  requireIdentifier(userId);
-  requireIdentifier(expenseId);
-  throwWriteError(await repository.updateExpense(
+): Promise<FormResult> {
+  if (userId.trim() === '' || expenseId.trim() === '') {
+    return failed('That expense could not be found.');
+  }
+  const validated = validateExpenseInput(input);
+  if (!validated.ok) {
+    return invalid(validated.fieldErrors, summarizeFieldErrors(validated.fieldErrors));
+  }
+  return writeResultToForm(await repository.updateExpense(
     expenseId,
     userId,
-    parseExpenseInput(input),
+    validated.values,
   ));
 }
 
@@ -145,8 +201,9 @@ export async function deleteExpense(
   repository: ExpenseWriteRepository,
   userId: string,
   expenseId: string,
-): Promise<void> {
-  requireIdentifier(userId);
-  requireIdentifier(expenseId);
-  throwWriteError(await repository.deleteExpense(expenseId, userId));
+): Promise<FormResult> {
+  if (userId.trim() === '' || expenseId.trim() === '') {
+    return failed('That expense could not be found.');
+  }
+  return writeResultToForm(await repository.deleteExpense(expenseId, userId));
 }
