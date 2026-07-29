@@ -28,8 +28,7 @@ function readTemplateInput(formData: FormData): PlanTemplateInput {
     amount: readString(formData, 'amount'),
     day: readString(formData, 'day'),
     status: readString(formData, 'status'),
-    effectiveStart: readString(formData, 'effectiveStart'),
-    effectiveEnd: readString(formData, 'effectiveEnd'),
+    finalMonth: readString(formData, 'finalMonth'),
   };
 }
 
@@ -68,7 +67,13 @@ export async function createTemplateAction(
 ): Promise<FormResult> {
   const { repository, userId } = await authorizedPlanContext();
   return submit(
-    () => createPlanTemplate(repository, userId, readTemplateInput(formData)),
+    // The item starts applying from the month being viewed.
+    () => createPlanTemplate(
+      repository,
+      userId,
+      readTemplateInput(formData),
+      readString(formData, 'periodStart'),
+    ),
     () => revalidatePath('/plan'),
     'That recurring item could not be saved.',
   );

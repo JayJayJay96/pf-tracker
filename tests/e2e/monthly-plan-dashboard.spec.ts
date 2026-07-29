@@ -97,6 +97,16 @@ test('creates monthly snapshots and preserves a historical spendable view', asyn
   ).toContainText('RM3300.00');
 });
 
+/*
+ * NOTE: this helper is stale and this spec cannot pass as written. It predates
+ * two earlier changes, independently of the plan-field rework:
+ *   - it drives a magic-link sign-in ("Send sign-in link"); the app uses a
+ *     password form
+ *   - it targets a single "Add template" heading and button; the plan page now
+ *     has three per-type sections (Add income / Add commitment / Add allocation)
+ * The plan-field rework additionally renamed the day field per type and removed
+ * "Effective start" entirely. Rewriting this spec is its own task.
+ */
 async function addTemplate(
   page: Page,
   input: {
@@ -115,7 +125,6 @@ async function addTemplate(
   if (input.status) {
     await form.getByLabel('Status').selectOption(input.status);
   }
-  await form.getByLabel('Effective start').fill('2026-01-01');
   await form.getByRole('button', { name: 'Add template' }).click();
   await expect(page.getByText(input.name, { exact: true }).first()).toBeVisible();
 }

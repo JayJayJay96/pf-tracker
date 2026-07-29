@@ -26,9 +26,8 @@ describe('monthly plan template actions', () => {
       amount: 'RM5000.25',
       day: '25',
       status: 'confirmed',
-      effectiveStart: '2026-07-01',
-      effectiveEnd: '',
-    });
+      finalMonth: '',
+    }, '2026-07-01');
 
     expect(inserted).toEqual({
       user_id: 'user-a',
@@ -62,9 +61,8 @@ describe('monthly plan template actions', () => {
       amount: 'RM1200.00',
       day: '1',
       status: 'confirmed',
-      effectiveStart: '2026-07-01',
-      effectiveEnd: '',
-    });
+      finalMonth: '',
+    }, '2026-07-01');
 
     expect(inserted).toMatchObject({
       entry_type: 'commitment',
@@ -91,9 +89,8 @@ describe('monthly plan template actions', () => {
       amount: 'RM5000.00',
       day: '25',
       status: 'garbage',
-      effectiveStart: '2026-07-01',
-      effectiveEnd: '',
-    })).rejects.toThrow('Invalid monthly plan template');
+      finalMonth: '',
+    }, '2026-07-01')).rejects.toThrow('Invalid monthly plan template');
     expect(writeCount).toBe(0);
   });
 
@@ -117,9 +114,8 @@ describe('monthly plan template actions', () => {
       amount: 'RM10.00',
       day: '1',
       status,
-      effectiveStart: '2026-07-01',
-      effectiveEnd: '',
-    });
+      finalMonth: '',
+    }, '2026-07-01');
 
     expect(inserted?.status).toBe(status);
   });
@@ -141,8 +137,7 @@ describe('monthly plan template actions', () => {
       amount: 'RM5500.00',
       day: '28',
       status: 'confirmed',
-      effectiveStart: '2026-07-01',
-      effectiveEnd: '',
+      finalMonth: '',
     });
 
     expect(updated).toEqual({
@@ -152,7 +147,7 @@ describe('monthly plan template actions', () => {
         name: 'Revised salary',
         entry_type: 'income',
         amount_sen: 550_000,
-        effective_start: '2026-07-01',
+        // Editing must not move the original start month.
         effective_end: null,
         recurrence: 'monthly',
         expected_day: 28,
@@ -160,6 +155,75 @@ describe('monthly plan template actions', () => {
         status: 'confirmed',
       },
     });
+  });
+
+  it('stores an optional final month as the end of that month', async () => {
+    let inserted: { effective_end?: string | null } | undefined;
+    const repository: PlanTemplateWriteRepository = {
+      insertTemplate: async (template) => {
+        inserted = template;
+        return { error: null };
+      },
+      updateTemplate: async () => ({ error: null }),
+      updateEntry: async () => ({ error: null }),
+    };
+
+    await createPlanTemplate(repository, 'user-a', {
+      name: 'Car loan',
+      entryType: 'commitment',
+      amount: '1000.00',
+      day: '5',
+      status: 'active',
+      finalMonth: '2027-06',
+    }, '2026-07-01');
+
+    expect(inserted?.effective_end).toBe('2027-06-30');
+  });
+
+  it('leaves an open-ended item with no final month', async () => {
+    let inserted: { effective_end?: string | null } | undefined;
+    const repository: PlanTemplateWriteRepository = {
+      insertTemplate: async (template) => {
+        inserted = template;
+        return { error: null };
+      },
+      updateTemplate: async () => ({ error: null }),
+      updateEntry: async () => ({ error: null }),
+    };
+
+    // Monthly money for a parent has no end; the field stays blank.
+    await createPlanTemplate(repository, 'user-a', {
+      name: 'Mum',
+      entryType: 'commitment',
+      amount: '500',
+      day: '1',
+      status: 'active',
+      finalMonth: '',
+    }, '2026-07-01');
+
+    expect(inserted?.effective_end).toBeNull();
+  });
+
+  it('rejects a final month that has already passed', async () => {
+    let writes = 0;
+    const repository: PlanTemplateWriteRepository = {
+      insertTemplate: async () => {
+        writes += 1;
+        return { error: null };
+      },
+      updateTemplate: async () => ({ error: null }),
+      updateEntry: async () => ({ error: null }),
+    };
+
+    await expect(createPlanTemplate(repository, 'user-a', {
+      name: 'Old loan',
+      entryType: 'commitment',
+      amount: '1000.00',
+      day: '5',
+      status: 'active',
+      finalMonth: '2026-05',
+    }, '2026-07-01')).rejects.toThrow('The final month cannot be before this month');
+    expect(writes).toBe(0);
   });
 
   it('archives only the authenticated owner template', async () => {

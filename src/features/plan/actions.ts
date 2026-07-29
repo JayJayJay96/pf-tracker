@@ -1,5 +1,5 @@
 import { requireAmountInput } from '../../domain/money';
-import { getCalendarMonth, type ISODate } from '../../domain/periods';
+import { endOfMonth, getCalendarMonth, type ISODate } from '../../domain/periods';
 import type { PlanEntryStatus, PlanEntryType } from './types';
 
 type WriteResult = {
@@ -50,8 +50,12 @@ export type PlanTemplateInput = {
   amount: string;
   day: string;
   status: string;
-  effectiveStart: string;
-  effectiveEnd: string;
+  /**
+   * Optional `YYYY-MM` of the last payment, for items that end — a car loan,
+   * say. Blank for open-ended items such as monthly money for a parent. Drives
+   * the "payments left" counter; nothing else depends on it.
+   */
+  finalMonth: string;
 };
 
 export type PlanEntryInput = {
@@ -95,14 +99,15 @@ function defaultStatus(entryType: PlanEntryType): PlanEntryStatus {
   }
 }
 
-function parseTemplateInput(input: PlanTemplateInput): PlanTemplateWriteValues {
+/** Everything the form supplies. `effective_start` is set only when creating. */
+type PlanTemplateFields = Omit<PlanTemplateWriteValues, 'effective_start'>;
+
+function parseTemplateInput(input: PlanTemplateInput): PlanTemplateFields {
   try {
     const name = input.name.trim();
     const entryType = input.entryType as PlanEntryType;
     const requestedStatus = input.status as PlanEntryStatus;
     const day = Number(input.day);
-    const effectiveStart = input.effectiveStart as ISODate;
-    const effectiveEnd = input.effectiveEnd === '' ? null : input.effectiveEnd as ISODate;
 
     if (
       name === ''
@@ -119,20 +124,12 @@ function parseTemplateInput(input: PlanTemplateInput): PlanTemplateWriteValues {
       ? requestedStatus
       : defaultStatus(entryType);
 
-    getCalendarMonth(effectiveStart);
-    if (effectiveEnd) {
-      getCalendarMonth(effectiveEnd);
-      if (effectiveEnd < effectiveStart) {
-        throw new Error();
-      }
-    }
-
     return {
       name,
       entry_type: entryType,
       amount_sen: requireAmountInput(input.amount),
-      effective_start: effectiveStart,
-      effective_end: effectiveEnd,
+      // A final month means "through the end of that month".
+      effective_end: input.finalMonth === '' ? null : endOfMonth(input.finalMonth),
       recurrence: 'monthly',
       expected_day: entryType === 'income' ? day : null,
       due_day: entryType === 'income' ? null : day,
@@ -159,12 +156,23 @@ export async function createPlanTemplate(
   repository: PlanTemplateWriteRepository,
   userId: string,
   input: PlanTemplateInput,
+  startMonth: string,
 ): Promise<void> {
   requireIdentifier(userId);
   const values = parseTemplateInput(input);
+  let effectiveStart: ISODate;
+  try {
+    effectiveStart = getCalendarMonth(startMonth).startDate;
+  } catch {
+    throw new Error('Invalid monthly plan template');
+  }
+  if (values.effective_end !== null && values.effective_end < effectiveStart) {
+    throw new Error('The final month cannot be before this month');
+  }
   throwWriteError(await repository.insertTemplate({
     user_id: userId,
     ...values,
+    effective_start: effectiveStart,
     is_active: true,
   }));
 }

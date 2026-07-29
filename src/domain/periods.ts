@@ -34,6 +34,41 @@ export function getCalendarMonth(date: ISODate): CalendarMonth {
   return { startDate: `${prefix}-01`, endDate: `${prefix}-${lastDay}` };
 }
 
+/**
+ * Resolves an `YYYY-MM` month to the last day of that month.
+ *
+ * A recurring item's final payment is a month, not a day: "the car loan ends in
+ * June 2027". Storing the month's last day keeps that meaning while still
+ * satisfying the date column it lives in.
+ */
+export function endOfMonth(month: string): ISODate {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    throw new Error('Invalid ISO month');
+  }
+  return getCalendarMonth(`${month}-01`).endDate;
+}
+
+/** Reduces an ISO date to its `YYYY-MM` month, for editing as a month value. */
+export function toMonthValue(date: ISODate): string {
+  parseISODate(date);
+  return date.slice(0, 7);
+}
+
+/**
+ * Counts the payments still to come, inclusive of the period being viewed and
+ * of the final month itself.
+ *
+ * Derived rather than stored: a counter decremented each month needs something
+ * to run every month, and silently rots the moment a run is missed. Computing it
+ * from the final month stays correct whenever it is read, even after a long gap.
+ */
+export function monthsRemaining(finalDate: ISODate, periodStart: ISODate): number {
+  const final = parseISODate(finalDate);
+  const current = parseISODate(periodStart);
+  const months = (final.year - current.year) * 12 + (final.month - current.month);
+  return months < 0 ? 0 : months + 1;
+}
+
 /** Tests whether an ISO date-only value falls within inclusive period boundaries. */
 export function isDateInPeriod(date: ISODate, period: CalendarMonth): boolean {
   parseISODate(date);

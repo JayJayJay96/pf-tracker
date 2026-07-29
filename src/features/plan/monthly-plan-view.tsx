@@ -5,7 +5,7 @@ import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
 import { ActionForm } from '../forms/action-form';
 import { ConfirmSubmit } from '../forms/confirm-submit';
-import type { ISODate } from '../../domain/periods';
+import { type ISODate, monthsRemaining, toMonthValue } from '../../domain/periods';
 import type { PlanEntry, PlanTemplate } from './types';
 
 type FormAction = (
@@ -45,16 +45,48 @@ function defaultStatus(entryType: PlanTemplate['entryType']): PlanTemplate['stat
   }
 }
 
+/** Wording for the day-of-month field, which differs by what the item is. */
+const DAY_LABEL: Record<PlanTemplate['entryType'], string> = {
+  income: 'Paid on day',
+  commitment: 'Charged on day',
+  savings: 'Transferred on day',
+  investment: 'Transferred on day',
+};
+
+/** Wording for the optional final month. */
+const FINAL_MONTH_LABEL: Record<PlanTemplate['entryType'], string> = {
+  income: 'Last month received (optional)',
+  commitment: 'Final payment month (optional)',
+  savings: 'Final month (optional)',
+  investment: 'Final month (optional)',
+};
+
+/**
+ * Only the statuses the database actually permits for each type. The form used
+ * to offer all five regardless, then silently substitute a valid one.
+ */
+const STATUS_OPTIONS: Record<PlanTemplate['entryType'], Array<[string, string]>> = {
+  income: [['confirmed', 'Confirmed'], ['pending', 'Not confirmed yet']],
+  commitment: [['active', 'Active'], ['inactive', 'Paused']],
+  savings: [['planned', 'Planned']],
+  investment: [['planned', 'Planned']],
+};
+
 function TemplateFields({
   template,
   fixedEntryType,
+  periodStart,
 }: {
   template?: PlanTemplate;
   fixedEntryType?: PlanTemplate['entryType'];
+  periodStart: ISODate;
 }) {
-  const entryType = fixedEntryType ?? template?.entryType ?? 'income';
+  const entryType = fixedEntryType ?? template?.entryType ?? 'savings';
+  const statuses = STATUS_OPTIONS[entryType];
   return (
     <>
+      {/* Recurring items start applying from the month being viewed. */}
+      <input type="hidden" name="periodStart" value={periodStart} />
       <label>
         Name
         <input name="name" required defaultValue={template?.name} />
@@ -65,8 +97,6 @@ function TemplateFields({
         <label>
           Type
           <select name="entryType" required defaultValue={entryType}>
-            <option value="income">Income</option>
-            <option value="commitment">Commitment</option>
             <option value="savings">Savings</option>
             <option value="investment">Investment</option>
           </select>
@@ -79,44 +109,61 @@ function TemplateFields({
         required
       />
       <label>
-        Money-in or due day
+        {DAY_LABEL[entryType]}
         <input
           name="day"
           type="number"
+          inputMode="numeric"
           min="1"
           max="31"
           required
           defaultValue={template?.day ?? 1}
         />
       </label>
+      {statuses.length === 1 ? (
+        <input type="hidden" name="status" value={statuses[0][0]} />
+      ) : (
+        <label>
+          Status
+          <select
+            name="status"
+            required
+            defaultValue={template?.status ?? defaultStatus(entryType)}
+          >
+            {statuses.map(([value, text]) => (
+              <option key={value} value={value}>{text}</option>
+            ))}
+          </select>
+        </label>
+      )}
       <label>
-        Status
-        <select
-          name="status"
-          required
-          defaultValue={template?.status ?? defaultStatus(entryType)}
-        >
-          <option value="confirmed">Confirmed income</option>
-          <option value="pending">Pending income</option>
-          <option value="active">Active commitment</option>
-          <option value="inactive">Inactive commitment</option>
-          <option value="planned">Planned allocation</option>
-        </select>
-      </label>
-      <label>
-        Effective start
+        {FINAL_MONTH_LABEL[entryType]}
         <input
-          name="effectiveStart"
-          type="date"
-          required
-          defaultValue={template?.effectiveStart}
+          name="finalMonth"
+          type="month"
+          defaultValue={template?.effectiveEnd ? toMonthValue(template.effectiveEnd) : ''}
         />
       </label>
-      <label>
-        Effective end
-        <input name="effectiveEnd" type="date" defaultValue={template?.effectiveEnd ?? ''} />
-      </label>
     </>
+  );
+}
+
+/** "8 payments left", derived from the final month rather than a stored counter. */
+function PaymentsLeft({
+  template,
+  periodStart,
+}: {
+  template: PlanTemplate;
+  periodStart: ISODate;
+}) {
+  if (!template.effectiveEnd) {
+    return null;
+  }
+  const left = monthsRemaining(template.effectiveEnd, periodStart);
+  return (
+    <span>
+      {left === 0 ? 'Final payment passed' : `${left} payment${left === 1 ? '' : 's'} left`}
+    </span>
   );
 }
 
@@ -125,11 +172,13 @@ function TemplateList({
   emptyMessage,
   actions,
   fixedEntryType,
+  periodStart,
 }: {
   templates: PlanTemplate[];
   emptyMessage: string;
   actions?: MonthlyPlanViewProps['actions'];
   fixedEntryType?: PlanTemplate['entryType'];
+  periodStart: ISODate;
 }) {
   return templates.length === 0 ? <p>{emptyMessage}</p> : (
     <ul>
@@ -138,7 +187,8 @@ function TemplateList({
           <strong>{template.name}</strong>{' '}
           <span>{formatRM(template.amountSen)}</span>{' '}
           <span>day {template.day}</span>{' '}
-          <span>{template.isActive ? 'Active' : 'Archived'}</span>
+          <span>{template.isActive ? 'Active' : 'Archived'}</span>{' '}
+          <PaymentsLeft template={template} periodStart={periodStart} />
           {template.isActive ? (
             <>
               <details>
@@ -148,6 +198,7 @@ function TemplateList({
                   <TemplateFields
                     template={template}
                     fixedEntryType={fixedEntryType}
+                    periodStart={periodStart}
                   />
                   <button type="submit">Save recurring item</button>
                 </ActionForm>
@@ -197,10 +248,11 @@ export function MonthlyPlanView({
           templates={incomeTemplates}
           emptyMessage="No recurring income yet."
           actions={actions}
+          periodStart={periodStart}
           fixedEntryType="income"
         />
         <ActionForm action={actions?.create}>
-          <TemplateFields fixedEntryType="income" />
+          <TemplateFields fixedEntryType="income" periodStart={periodStart} />
           <button type="submit">Add income</button>
         </ActionForm>
       </section>
@@ -211,10 +263,11 @@ export function MonthlyPlanView({
           templates={commitmentTemplates}
           emptyMessage="No recurring commitments yet."
           actions={actions}
+          periodStart={periodStart}
           fixedEntryType="commitment"
         />
         <ActionForm action={actions?.create}>
-          <TemplateFields fixedEntryType="commitment" />
+          <TemplateFields fixedEntryType="commitment" periodStart={periodStart} />
           <button type="submit">Add commitment</button>
         </ActionForm>
       </section>
@@ -225,9 +278,10 @@ export function MonthlyPlanView({
           templates={otherTemplates}
           emptyMessage="No savings or investment allocations yet."
           actions={actions}
+          periodStart={periodStart}
         />
         <ActionForm action={actions?.create}>
-          <TemplateFields />
+          <TemplateFields periodStart={periodStart} />
           <button type="submit">Add allocation</button>
         </ActionForm>
       </section>

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { getCalendarMonth, isDateInPeriod } from './periods';
+import {
+  endOfMonth,
+  getCalendarMonth,
+  isDateInPeriod,
+  monthsRemaining,
+  toMonthValue,
+} from './periods';
 
 describe('calendar month periods', () => {
   it('returns the correct February boundaries in a common year', () => {
@@ -30,5 +36,43 @@ describe('calendar month periods', () => {
     [{ startDate: '2026-04-01', endDate: '2026-05-31' }],
   ])('rejects a range that is not a complete calendar month: %o', (period) => {
     expect(() => isDateInPeriod('2026-04-15', period)).toThrow('Invalid calendar period');
+  });
+});
+
+describe('final month and payments remaining', () => {
+  it('resolves a month to its last day, including leap February', () => {
+    expect(endOfMonth('2027-06')).toBe('2027-06-30');
+    expect(endOfMonth('2027-01')).toBe('2027-01-31');
+    expect(endOfMonth('2024-02')).toBe('2024-02-29');
+    expect(endOfMonth('2025-02')).toBe('2025-02-28');
+  });
+
+  it('rejects a value that is not a real month', () => {
+    expect(() => endOfMonth('2027-13')).toThrow('Invalid ISO month');
+    expect(() => endOfMonth('2027-00')).toThrow('Invalid ISO month');
+    expect(() => endOfMonth('2027-6')).toThrow('Invalid ISO month');
+    expect(() => endOfMonth('2027-06-30')).toThrow('Invalid ISO month');
+  });
+
+  it('reduces a stored date back to an editable month', () => {
+    expect(toMonthValue('2027-06-30')).toBe('2027-06');
+    expect(() => toMonthValue('2027-06')).toThrow('Invalid ISO date');
+  });
+
+  it('counts the current month and the final month inclusively', () => {
+    // Final payment this month means one payment left, not zero.
+    expect(monthsRemaining('2026-07-31', '2026-07-01')).toBe(1);
+    expect(monthsRemaining('2026-08-31', '2026-07-01')).toBe(2);
+    expect(monthsRemaining('2027-06-30', '2026-07-01')).toBe(12);
+  });
+
+  it('counts across a year boundary', () => {
+    expect(monthsRemaining('2027-01-31', '2026-12-01')).toBe(2);
+    expect(monthsRemaining('2029-03-31', '2026-07-01')).toBe(33);
+  });
+
+  it('reports nothing left once the final month has passed', () => {
+    expect(monthsRemaining('2026-06-30', '2026-07-01')).toBe(0);
+    expect(monthsRemaining('2025-01-31', '2026-07-01')).toBe(0);
   });
 });
