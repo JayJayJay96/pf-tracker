@@ -112,6 +112,24 @@ export function SummaryView({
         </p>
       </section>
 
+      <section className="quick-actions" aria-label="Quick actions">
+        <Link href="/expenses">Add personal expense</Link>
+        <Link href="/shared-bills">Add shared bill</Link>
+        <Link href="/transactions">View transactions</Link>
+        <Link href="/plan">
+          {hasSnapshots ? 'Edit income and commitments' : 'Add income and commitments'}
+        </Link>
+      </section>
+
+      <section className="daily-workflow" aria-labelledby="daily-workflow-heading">
+        <h2 id="daily-workflow-heading">Today&apos;s workflow</h2>
+        <ol>
+          <li>Check remaining spendable before spending.</li>
+          <li>Record personal expenses right after paying.</li>
+          <li>Record shared bills first, then resolve friends when ready.</li>
+        </ol>
+      </section>
+
       <dl className="metric-grid">
         {metrics.map(([label, value]) => (
           <div className="metric-card" key={label}>

@@ -109,20 +109,6 @@ export function ExpenseView({
       </nav>
       <h1>Personal Expenses</h1>
 
-      <section aria-labelledby="categories-heading">
-        <h2 id="categories-heading">Expense categories</h2>
-        <form action={actions?.createCategory}>
-          <label>
-            New category name
-            <input name="name" required />
-          </label>
-          <button type="submit">Add category</button>
-        </form>
-        {categories.length === 0 ? <p>Add a category before recording an expense.</p> : (
-          <p>{categories.map((category) => category.name).join(', ')}</p>
-        )}
-      </section>
-
       <section aria-labelledby="add-expense-heading">
         <h2 id="add-expense-heading">Add personal expense</h2>
         {userId ? <DraftForm
@@ -143,6 +129,20 @@ export function ExpenseView({
             />
             <button type="submit" disabled={categories.length === 0}>Save expense</button>
           </form>
+        )}
+      </section>
+
+      <section aria-labelledby="categories-heading">
+        <h2 id="categories-heading">Expense categories</h2>
+        <form action={actions?.createCategory}>
+          <label>
+            New category name
+            <input name="name" required />
+          </label>
+          <button type="submit">Add category</button>
+        </form>
+        {categories.length === 0 ? <p>Add a category before recording an expense.</p> : (
+          <p>{categories.map((category) => category.name).join(', ')}</p>
         )}
       </section>
 

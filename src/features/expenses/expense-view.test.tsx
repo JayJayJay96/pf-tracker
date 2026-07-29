@@ -26,6 +26,12 @@ describe('personal expense view', () => {
 
     expect(page).toContain('Add personal expense');
     expect(page).toContain('Transaction history');
+    expect(page.indexOf('Add personal expense')).toBeLessThan(
+      page.indexOf('Expense categories'),
+    );
+    expect(page.indexOf('Expense categories')).toBeLessThan(
+      page.indexOf('Transaction history'),
+    );
     expect(page).toContain('Backdated lunch');
     expect(page).toContain('Kopitiam');
     expect(page).toContain('RM12.50');

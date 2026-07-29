@@ -29,6 +29,16 @@ describe('dashboard summary view', () => {
     expect(page).toContain('July 2026');
     expect(page).toContain('class="dashboard-shell"');
     expect(page).toContain('class="dashboard-hero"');
+    expect(page).toContain('class="quick-actions"');
+    expect(page).toContain('href="/expenses"');
+    expect(page).toContain('Add personal expense');
+    expect(page).toContain('href="/shared-bills"');
+    expect(page).toContain('Add shared bill');
+    expect(page).toContain('href="/transactions"');
+    expect(page).toContain('View transactions');
+    expect(page).toContain('href="/plan"');
+    expect(page).toContain('Edit income and commitments');
+    expect(page).toContain('class="daily-workflow"');
     expect(page).toContain('class="metric-grid"');
     expect(page).toContain('class="metric-card"');
     expect(page).toContain('Remaining spendable');
@@ -109,6 +119,7 @@ describe('dashboard summary view', () => {
     );
 
     expect(page).toContain('No plan snapshots for this month.');
+    expect(page).toContain('Add income and commitments');
   });
 
   it('shows shared cash outflow, friend receivables, and unresolved warning', () => {

@@ -75,20 +75,6 @@ export function SharedBillView({
       </nav>
       <h1>Shared Bills</h1>
 
-      <section aria-labelledby="friends-heading">
-        <h2 id="friends-heading">Friends</h2>
-        <form action={actions?.createFriend}>
-          <label>
-            Friend name
-            <input name="name" required />
-          </label>
-          <button type="submit">Add friend</button>
-        </form>
-        {friends.length === 0
-          ? <p>Add a friend before resolving a bill.</p>
-          : <p>{friends.map(({ name }) => name).join(', ')}</p>}
-      </section>
-
       <section aria-labelledby="record-bill-heading">
         <h2 id="record-bill-heading">Record shared bill</h2>
         {userId ? <DraftForm
@@ -102,6 +88,20 @@ export function SharedBillView({
             <SharedBillFields defaultTransactionDate={defaultTransactionDate} />
           </form>
         )}
+      </section>
+
+      <section aria-labelledby="friends-heading">
+        <h2 id="friends-heading">Friends</h2>
+        <form action={actions?.createFriend}>
+          <label>
+            Friend name
+            <input name="name" required />
+          </label>
+          <button type="submit">Add friend</button>
+        </form>
+        {friends.length === 0
+          ? <p>Add a friend before resolving a bill.</p>
+          : <p>{friends.map(({ name }) => name).join(', ')}</p>}
       </section>
 
       <section aria-labelledby="shared-bills-heading">

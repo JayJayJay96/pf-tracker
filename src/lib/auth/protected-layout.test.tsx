@@ -23,6 +23,15 @@ describe('protected app layout', () => {
     );
 
     expect(page).toContain('class="app-header"');
+    expect(page).toContain('class="app-primary-nav"');
+    expect(page).toContain('href="/"');
+    expect(page).toContain('Expenses');
+    expect(page).toContain('Shared Bills');
+    expect(page).toContain('Transactions');
+    expect(page).toContain('class="app-secondary-nav"');
+    expect(page).toContain('Income &amp; Commitments');
+    expect(page).toContain('Friends');
+    expect(page).toContain('Reports');
     expect(page).toContain('class="app-content"');
     expect(page).toContain('<main><h1>Monthly Plan</h1></main>');
   });

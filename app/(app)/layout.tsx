@@ -29,6 +29,17 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
         <Link className="app-brand" href="/">
           PF Tracker
         </Link>
+        <nav className="app-primary-nav" aria-label="Daily">
+          <Link href="/">Dashboard</Link>
+          <Link href="/expenses">Expenses</Link>
+          <Link href="/shared-bills">Shared Bills</Link>
+          <Link href="/transactions">Transactions</Link>
+        </nav>
+        <nav className="app-secondary-nav" aria-label="Support">
+          <Link href="/plan">Income &amp; Commitments</Link>
+          <Link href="/friends">Friends</Link>
+          <Link href="/reports">Reports</Link>
+        </nav>
         <form action={signOut}>
           <button className="ghost-button" type="submit">Sign out</button>
         </form>

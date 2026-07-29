@@ -38,23 +38,33 @@ function defaultStatus(entryType: PlanTemplate['entryType']): PlanTemplate['stat
   }
 }
 
-function TemplateFields({ template }: { template?: PlanTemplate }) {
-  const entryType = template?.entryType ?? 'income';
+function TemplateFields({
+  template,
+  fixedEntryType,
+}: {
+  template?: PlanTemplate;
+  fixedEntryType?: PlanTemplate['entryType'];
+}) {
+  const entryType = fixedEntryType ?? template?.entryType ?? 'income';
   return (
     <>
       <label>
         Name
         <input name="name" required defaultValue={template?.name} />
       </label>
-      <label>
-        Type
-        <select name="entryType" required defaultValue={entryType}>
-          <option value="income">Income</option>
-          <option value="commitment">Commitment</option>
-          <option value="savings">Savings</option>
-          <option value="investment">Investment</option>
-        </select>
-      </label>
+      {fixedEntryType ? (
+        <input type="hidden" name="entryType" value={fixedEntryType} />
+      ) : (
+        <label>
+          Type
+          <select name="entryType" required defaultValue={entryType}>
+            <option value="income">Income</option>
+            <option value="commitment">Commitment</option>
+            <option value="savings">Savings</option>
+            <option value="investment">Investment</option>
+          </select>
+        </label>
+      )}
       <label>
         Amount
         <input
@@ -67,7 +77,7 @@ function TemplateFields({ template }: { template?: PlanTemplate }) {
         />
       </label>
       <label>
-        Expected or due day
+        Money-in or due day
         <input
           name="day"
           type="number"
@@ -108,6 +118,50 @@ function TemplateFields({ template }: { template?: PlanTemplate }) {
   );
 }
 
+function TemplateList({
+  templates,
+  emptyMessage,
+  actions,
+  fixedEntryType,
+}: {
+  templates: PlanTemplate[];
+  emptyMessage: string;
+  actions?: MonthlyPlanViewProps['actions'];
+  fixedEntryType?: PlanTemplate['entryType'];
+}) {
+  return templates.length === 0 ? <p>{emptyMessage}</p> : (
+    <ul>
+      {templates.map((template) => (
+        <li key={template.id}>
+          <strong>{template.name}</strong>{' '}
+          <span>{formatRM(template.amountSen)}</span>{' '}
+          <span>day {template.day}</span>{' '}
+          <span>{template.isActive ? 'Active' : 'Archived'}</span>
+          {template.isActive ? (
+            <>
+              <details>
+                <summary>Edit {template.name}</summary>
+                <form action={actions?.update}>
+                  <input type="hidden" name="templateId" value={template.id} />
+                  <TemplateFields
+                    template={template}
+                    fixedEntryType={fixedEntryType}
+                  />
+                  <button type="submit">Save recurring item</button>
+                </form>
+              </details>
+              <form action={actions?.archive}>
+                <input type="hidden" name="templateId" value={template.id} />
+                <button type="submit">Archive</button>
+              </form>
+            </>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function MonthlyPlanView({
   periodStart,
   templates,
@@ -115,6 +169,11 @@ export function MonthlyPlanView({
   actions,
 }: MonthlyPlanViewProps) {
   const label = monthLabel(periodStart);
+  const incomeTemplates = templates.filter((template) => template.entryType === 'income');
+  const commitmentTemplates = templates.filter((template) => template.entryType === 'commitment');
+  const otherTemplates = templates.filter((template) => (
+    template.entryType === 'savings' || template.entryType === 'investment'
+  ));
 
   return (
     <main>
@@ -122,11 +181,52 @@ export function MonthlyPlanView({
         <Link href="/">Dashboard</Link>{' '}
         <Link href="/reports">Reports</Link>
       </nav>
-      <h1>Monthly Plan</h1>
-      <p>Template edits apply only to months generated afterward.</p>
+      <h1>Income &amp; Commitments</h1>
+      <p>These fixed items carry forward into future months.</p>
+
+      <section aria-labelledby="income-heading">
+        <h2 id="income-heading">Recurring income</h2>
+        <TemplateList
+          templates={incomeTemplates}
+          emptyMessage="No recurring income yet."
+          actions={actions}
+          fixedEntryType="income"
+        />
+        <form action={actions?.create}>
+          <TemplateFields fixedEntryType="income" />
+          <button type="submit">Add income</button>
+        </form>
+      </section>
+
+      <section aria-labelledby="commitments-heading">
+        <h2 id="commitments-heading">Recurring commitments</h2>
+        <TemplateList
+          templates={commitmentTemplates}
+          emptyMessage="No recurring commitments yet."
+          actions={actions}
+          fixedEntryType="commitment"
+        />
+        <form action={actions?.create}>
+          <TemplateFields fixedEntryType="commitment" />
+          <button type="submit">Add commitment</button>
+        </form>
+      </section>
+
+      <section aria-labelledby="allocations-heading">
+        <h2 id="allocations-heading">Other monthly allocations</h2>
+        <TemplateList
+          templates={otherTemplates}
+          emptyMessage="No savings or investment allocations yet."
+          actions={actions}
+        />
+        <form action={actions?.create}>
+          <TemplateFields />
+          <button type="submit">Add allocation</button>
+        </form>
+      </section>
 
       <section aria-labelledby="month-heading">
-        <h2 id="month-heading">Selected month</h2>
+        <h2 id="month-heading">Generate selected month</h2>
         <form method="get">
           <label>
             Month
@@ -145,49 +245,9 @@ export function MonthlyPlanView({
         </form>
       </section>
 
-      <section aria-labelledby="new-template-heading">
-        <h2 id="new-template-heading">Add template</h2>
-        <form action={actions?.create}>
-          <TemplateFields />
-          <button type="submit">Add template</button>
-        </form>
-      </section>
-
-      <section aria-labelledby="templates-heading">
-        <h2 id="templates-heading">Templates</h2>
-        {templates.length === 0 ? <p>No templates yet.</p> : (
-          <ul>
-            {templates.map((template) => (
-              <li key={template.id}>
-                <strong>{template.name}</strong>{' '}
-                <span>{formatRM(template.amountSen)}</span>{' '}
-                <span>{template.entryType}</span>{' '}
-                <span>{template.isActive ? 'Active' : 'Archived'}</span>
-                {template.isActive ? (
-                  <>
-                    <details>
-                      <summary>Edit {template.name}</summary>
-                      <form action={actions?.update}>
-                        <input type="hidden" name="templateId" value={template.id} />
-                        <TemplateFields template={template} />
-                        <button type="submit">Save future template</button>
-                      </form>
-                    </details>
-                    <form action={actions?.archive}>
-                      <input type="hidden" name="templateId" value={template.id} />
-                      <button type="submit">Archive</button>
-                    </form>
-                  </>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       <section aria-labelledby="snapshots-heading">
-        <h2 id="snapshots-heading">Generated snapshots for {label}</h2>
-        {entries.length === 0 ? <p>No snapshots generated for {label}.</p> : (
+        <h2 id="snapshots-heading">Generated monthly entries for {label}</h2>
+        {entries.length === 0 ? <p>No generated entries for {label}.</p> : (
           <ul>
             {entries.map((entry) => (
               <li key={entry.id}>

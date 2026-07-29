@@ -79,8 +79,9 @@ input[type="radio"] {
 .app-header {
   align-items: center;
   border-bottom: 1px solid var(--line);
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  gap: 0.8rem 1rem;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   margin: 0 auto;
   max-width: 1180px;
   padding: 1rem 1.25rem;
@@ -97,6 +98,42 @@ input[type="radio"] {
 .ghost-button {
   background: transparent;
   padding: 0.55rem 0.8rem;
+}
+
+.app-primary-nav,
+.app-secondary-nav {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.app-primary-nav a,
+.app-secondary-nav a {
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.app-primary-nav a {
+  border: 1px solid var(--line);
+  color: #d8eaf5;
+  padding: 0.55rem 0.75rem;
+}
+
+.app-primary-nav a:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.app-secondary-nav a {
+  color: var(--muted);
+  font-size: 0.86rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.app-secondary-nav a:hover {
+  color: var(--text);
+  background: rgba(85, 199, 255, 0.08);
 }
 
 .app-content > main:not(.dashboard-shell) {
@@ -329,6 +366,7 @@ p {
 .notice-panel,
 .warning-panel,
 .dashboard-hero,
+.daily-workflow,
 .metric-card {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -373,6 +411,47 @@ p {
   max-width: 680px;
 }
 
+.quick-actions {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  margin: 0 0 1.25rem;
+}
+
+.quick-actions a {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--blue-soft);
+  color: var(--text);
+  font-weight: 700;
+  padding: 0.95rem 1rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.quick-actions a:hover {
+  border-color: var(--blue);
+  background: rgba(85, 199, 255, 0.18);
+}
+
+.daily-workflow {
+  margin: 0 0 1.25rem;
+  padding: 1rem;
+}
+
+.daily-workflow h2 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.daily-workflow ol {
+  color: var(--muted);
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
 .metric-grid {
   display: grid;
   gap: 0.85rem;
@@ -401,7 +480,6 @@ p {
 }
 
 @media (max-width: 720px) {
-  .app-header,
   .dashboard-topline,
   .period-form {
     align-items: stretch;
@@ -410,6 +488,7 @@ p {
 
   .app-header {
     gap: 0.75rem;
+    grid-template-columns: 1fr;
   }
 
   .dashboard-shell {
