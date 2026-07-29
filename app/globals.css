@@ -280,10 +280,6 @@ textarea[aria-invalid="true"] {
   padding: 1rem 1.25rem;
 }
 
-.app-header .app-primary-nav {
-  flex: 1 1 auto;
-}
-
 .app-header form {
   margin-left: auto;
 }
@@ -301,66 +297,10 @@ textarea[aria-invalid="true"] {
   padding: 0.55rem 0.8rem;
 }
 
-.app-primary-nav,
-.app-secondary-nav {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.app-primary-nav a,
-.app-secondary-nav a {
-  border-radius: 8px;
-  text-decoration: none;
-}
-
-.app-primary-nav a {
-  border: 1px solid var(--line);
-  color: #d8eaf5;
-  padding: 0.55rem 0.75rem;
-}
-
-.app-primary-nav a:hover {
-  border-color: var(--line-strong);
-  color: var(--text);
-}
-
-.app-secondary-nav a {
-  color: var(--muted);
-  font-size: 0.86rem;
-  padding: 0.45rem 0.55rem;
-}
-
-.app-secondary-nav a:hover {
-  color: var(--text);
-  background: rgba(85, 199, 255, 0.08);
-}
-
 .app-content > main:not(.dashboard-shell) {
   margin: 0 auto;
   max-width: 1180px;
   padding: 2rem 1.25rem 4rem;
-}
-
-.app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  margin-bottom: 1.5rem;
-}
-
-.app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] a {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: #c8d9e6;
-  padding: 0.55rem 0.75rem;
-  text-decoration: none;
-}
-
-.app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] a:hover {
-  border-color: var(--line-strong);
-  color: var(--text);
 }
 
 .app-content > main:not(.dashboard-shell) h1 {
@@ -573,30 +513,9 @@ p {
   padding: 1rem;
 }
 
-/* Between the mobile breakpoint and full width the nav groups need their own
-   rows before they start colliding. */
-@media (min-width: 721px) and (max-width: 1070px) {
-  .app-header .app-secondary-nav {
-    order: 3;
-  }
-
-  .app-header form {
-    order: 2;
-  }
-}
-
 @media (max-width: 720px) {
 .app-header {
     gap: 0.75rem;
-  }
-
-  .app-header .app-primary-nav,
-  .app-header .app-secondary-nav {
-    flex-basis: 100%;
-  }
-
-  .app-header form {
-    margin-left: 0;
   }
 
   .dashboard-shell {
@@ -610,14 +529,5 @@ p {
 
   .app-content > main:not(.dashboard-shell) form > button {
     justify-self: stretch;
-  }
-
-  .app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .app-content > main:not(.dashboard-shell) > nav[aria-label="Primary"] a {
-    text-align: center;
   }
 }

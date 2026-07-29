@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import { formatRM } from '../../domain/money';
 import { ActionForm } from '../forms/action-form';
 import { ConfirmSubmit } from '../forms/confirm-submit';
@@ -26,6 +24,8 @@ type ExpenseViewProps = {
   defaultPaymentMethod?: PaymentMethod;
   /** Category of the most recent expense, so repeat entries need no choosing. */
   defaultCategoryId?: string;
+  /** Focuses the amount on arrival, for the Add shortcut on mobile. */
+  autoFocusAmount?: boolean;
   userId?: string;
   actions?: {
     createCategory: FormAction;
@@ -41,12 +41,14 @@ function ExpenseFields({
   defaultTransactionDate,
   defaultPaymentMethod = 'tng',
   defaultCategoryId,
+  autoFocusAmount,
 }: {
   categories: ExpenseCategory[];
   expense?: Expense;
   defaultTransactionDate?: string;
   defaultPaymentMethod?: PaymentMethod;
   defaultCategoryId?: string;
+  autoFocusAmount?: boolean;
 }) {
   return (
     <>
@@ -54,6 +56,7 @@ function ExpenseFields({
         name="amount"
         label="Amount"
         defaultSen={expense ? expense.amountSen : null}
+        autoFocus={autoFocusAmount}
         required
       />
       <label>
@@ -123,17 +126,12 @@ export function ExpenseView({
   defaultTransactionDate,
   defaultPaymentMethod,
   defaultCategoryId,
+  autoFocusAmount,
   userId,
   actions,
 }: ExpenseViewProps) {
   return (
     <main>
-      <nav aria-label="Primary">
-        <Link href="/">Dashboard</Link>{' '}
-        <Link href="/transactions">Transactions</Link>{' '}
-        <Link href="/plan">Monthly Plan</Link>{' '}
-        <Link href="/reports">Reports</Link>
-      </nav>
       <h1>Personal Expenses</h1>
 
       <section aria-labelledby="add-expense-heading">
@@ -155,6 +153,7 @@ export function ExpenseView({
             defaultTransactionDate={defaultTransactionDate}
             defaultPaymentMethod={defaultPaymentMethod}
             defaultCategoryId={defaultCategoryId}
+            autoFocusAmount={autoFocusAmount}
           />
           <button
             type="submit"

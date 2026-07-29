@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import { formatRM } from '../../domain/money';
 import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
@@ -235,10 +233,6 @@ export function MonthlyPlanView({
 
   return (
     <main>
-      <nav aria-label="Primary">
-        <Link href="/">Dashboard</Link>{' '}
-        <Link href="/reports">Reports</Link>
-      </nav>
       <h1>Income &amp; Commitments</h1>
       <p>These fixed items carry forward into future months.</p>
 

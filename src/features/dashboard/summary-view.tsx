@@ -221,8 +221,10 @@ export function SummaryView({
           },
           {
             label: 'Left',
+            // Needs real contrast against the dark track, or the largest share
+            // of the bar reads as empty space.
             amountSen: remaining > 0 ? remaining : 0,
-            className: 'bg-ink-muted/40',
+            className: 'bg-ink-muted/70',
           },
         ]}
       />

@@ -15,21 +15,9 @@ type FormAction = (
   formData: FormData,
 ) => Promise<FormResult>;
 
-function PrimaryNavigation() {
-  return (
-    <nav aria-label="Primary">
-      <Link href="/">Dashboard</Link>{' '}
-      <Link href="/shared-bills">Shared Bills</Link>{' '}
-      <Link href="/friends">Friends</Link>{' '}
-      <Link href="/reports">Reports</Link>
-    </nav>
-  );
-}
-
 export function FriendsView({ friends }: { friends: FriendBalance[] }) {
   return (
     <main>
-      <PrimaryNavigation />
       <h1>Friends</h1>
       {friends.length === 0 ? (
         <p>Add and allocate a friend on Shared Bills to start a ledger.</p>
@@ -68,7 +56,6 @@ export function FriendLedgerView({
   const unrequested = ledger.filter(({ status }) => status === 'unrequested');
   return (
     <main>
-      <PrimaryNavigation />
       <h1>{friend.name}</h1>
       <section aria-labelledby="profile-heading">
         <h2 id="profile-heading">Profile</h2>
@@ -181,7 +168,6 @@ export function PaymentRequestView({
   });
   return (
     <main>
-      <PrimaryNavigation />
       <p><Link href={`/friends/${friend.id}`}>Back to {friend.name}</Link></p>
       <h1>Payment request</h1>
       <p>

@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import { formatRM } from '../../domain/money';
 import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
@@ -62,13 +60,6 @@ export function SharedBillView({
 }: SharedBillViewProps) {
   return (
     <main>
-      <nav aria-label="Primary">
-        <Link href="/">Dashboard</Link>{' '}
-        <Link href="/transactions">Transactions</Link>{' '}
-        <Link href="/expenses">Personal Expenses</Link>{' '}
-        <Link href="/friends">Friends</Link>{' '}
-        <Link href="/reports">Reports</Link>
-      </nav>
       <h1>Shared Bills</h1>
 
       <section aria-labelledby="record-bill-heading">

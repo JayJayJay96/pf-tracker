@@ -53,13 +53,6 @@ export function ReportView({
 }) {
   return (
     <main>
-      <nav aria-label="Primary">
-        <Link href="/">Dashboard</Link>{' '}
-        <Link href="/transactions">Transactions</Link>{' '}
-        <Link href="/expenses">Personal Expenses</Link>{' '}
-        <Link href="/shared-bills">Shared Bills</Link>{' '}
-        <Link href="/friends">Friends</Link>
-      </nav>
       <h1>{report.period.label} report</h1>
       <p>
         Reporting uses transaction dates. Recorded dates remain visible for audit context.

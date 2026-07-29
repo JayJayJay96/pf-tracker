@@ -45,13 +45,6 @@ export function TransactionHistoryView({
 }) {
   return (
     <main>
-      <nav aria-label="Primary">
-        <Link href="/">Dashboard</Link>{' '}
-        <Link href="/expenses">Personal Expenses</Link>{' '}
-        <Link href="/shared-bills">Shared Bills</Link>{' '}
-        <Link href="/friends">Friends</Link>{' '}
-        <Link href="/reports">Reports</Link>
-      </nav>
       <h1>Transactions</h1>
       <p>
         One owner-only history for personal expenses and shared bills.

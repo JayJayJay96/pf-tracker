@@ -63,6 +63,7 @@ export default async function ExpensesPage({ searchParams }: ExpensePageProps) {
       defaultTransactionDate={todayInMalaysia()}
       defaultPaymentMethod={entryDefaults.paymentMethod}
       defaultCategoryId={entryDefaults.categoryId}
+      autoFocusAmount={first(params.add) === '1'}
       userId={userId}
       actions={{
         createCategory: createCategoryAction,
