@@ -48,6 +48,19 @@ export function endOfMonth(month: string): ISODate {
   return getCalendarMonth(`${month}-01`).endDate;
 }
 
+/** Steps a calendar-month start by whole months, for a previous/next control. */
+export function addMonths(periodStart: ISODate, delta: number): ISODate {
+  const { year, month } = parseISODate(periodStart);
+  const zeroBased = (year * 12) + (month - 1) + delta;
+  const shiftedYear = Math.floor(zeroBased / 12);
+  const shiftedMonth = zeroBased - (shiftedYear * 12) + 1;
+  if (shiftedYear < 1 || shiftedYear > 9999) {
+    throw new Error('Invalid ISO date');
+  }
+  const prefix = `${String(shiftedYear).padStart(4, '0')}-${String(shiftedMonth).padStart(2, '0')}`;
+  return getCalendarMonth(`${prefix}-01`).startDate;
+}
+
 /** Reduces an ISO date to its `YYYY-MM` month, for editing as a month value. */
 export function toMonthValue(date: ISODate): string {
   parseISODate(date);

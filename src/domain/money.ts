@@ -95,6 +95,23 @@ export function parseSignedAmountInput(value: string): AmountInputResult {
   return { ok: true, sen: negative ? -result.sen : result.sen };
 }
 
+/**
+ * Formats sen for display, grouped in thousands and signed: `RM1,842.35`,
+ * `-RM900.00`.
+ *
+ * `formatRM` stays the strict storage format, which has no separators and must
+ * round-trip through `parseRM`. Screens should prefer this, because RM5200.00 is
+ * meaningfully harder to read at a glance than RM5,200.00.
+ */
+export function formatMoney(amount: Sen): string {
+  const magnitude = Math.abs(amount);
+  assertNonnegativeSen(magnitude);
+  const ringgit = String(Math.floor(magnitude / 100))
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const sen = String(magnitude % 100).padStart(2, '0');
+  return `${amount < 0 ? '-' : ''}RM${ringgit}.${sen}`;
+}
+
 /** Rejection of a human-typed amount, carrying a message written for that person. */
 export class AmountInputError extends Error {}
 

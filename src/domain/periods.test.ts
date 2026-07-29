@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  addMonths,
   endOfMonth,
   getCalendarMonth,
   isDateInPeriod,
@@ -74,5 +75,25 @@ describe('final month and payments remaining', () => {
   it('reports nothing left once the final month has passed', () => {
     expect(monthsRemaining('2026-06-30', '2026-07-01')).toBe(0);
     expect(monthsRemaining('2025-01-31', '2026-07-01')).toBe(0);
+  });
+});
+
+describe('stepping months', () => {
+  it('steps forward and back within a year', () => {
+    expect(addMonths('2026-07-01', 1)).toBe('2026-08-01');
+    expect(addMonths('2026-07-01', -1)).toBe('2026-06-01');
+    expect(addMonths('2026-07-01', 0)).toBe('2026-07-01');
+  });
+
+  it('crosses year boundaries in both directions', () => {
+    expect(addMonths('2026-12-01', 1)).toBe('2027-01-01');
+    expect(addMonths('2026-01-01', -1)).toBe('2025-12-01');
+    expect(addMonths('2026-07-01', 18)).toBe('2028-01-01');
+    expect(addMonths('2026-07-01', -18)).toBe('2025-01-01');
+  });
+
+  it('always lands on the first of the month', () => {
+    expect(addMonths('2026-02-01', 1)).toBe('2026-03-01');
+    expect(addMonths('2026-01-01', 1)).toBe('2026-02-01');
   });
 });

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import { formatRM } from '../../domain/money';
-import type { ISODate } from '../../domain/periods';
+import { formatMoney } from '../../domain/money';
+import { addMonths, type ISODate } from '../../domain/periods';
 import type { MonthlySummary } from '../../domain/summary';
 import type { DashboardSummary } from './queries';
 
@@ -22,10 +22,6 @@ type SummaryViewProps = {
   hasSnapshots: boolean;
 };
 
-function formatSignedRM(amountSen: number): string {
-  return amountSen < 0 ? `-${formatRM(-amountSen)}` : formatRM(amountSen);
-}
-
 function monthLabel(periodStart: ISODate): string {
   return new Intl.DateTimeFormat('en-MY', {
     month: 'long',
@@ -34,110 +30,266 @@ function monthLabel(periodStart: ISODate): string {
   }).format(new Date(`${periodStart}T00:00:00Z`));
 }
 
+function monthParam(periodStart: ISODate): string {
+  return periodStart.slice(0, 7);
+}
+
+/** One segment of the allocation bar: a share of confirmed income. */
+type Slice = { label: string; amountSen: number; className: string };
+
+function AllocationBar({ incomeSen, slices }: { incomeSen: number; slices: Slice[] }) {
+  // Without income there is no whole for the parts to be shares of.
+  if (incomeSen <= 0) {
+    return null;
+  }
+  const shown = slices.filter((slice) => slice.amountSen > 0);
+  if (shown.length === 0) {
+    return null;
+  }
+
+  return (
+    <section aria-labelledby="allocation-heading" className="grid gap-3">
+      <h2 className="text-sm font-semibold text-ink-muted" id="allocation-heading">
+        Where this month&rsquo;s income goes
+      </h2>
+      {/*
+        Decorative: the list below states every figure as text, so the bar is
+        never the only way to read this.
+      */}
+      <div
+        aria-hidden="true"
+        className="flex h-3 w-full overflow-hidden rounded-full bg-black/40"
+      >
+        {shown.map((slice) => (
+          <div
+            className={slice.className}
+            key={slice.label}
+            style={{ width: `${(slice.amountSen / incomeSen) * 100}%` }}
+          />
+        ))}
+      </div>
+      <dl className="flex flex-wrap gap-x-5 gap-y-2">
+        {shown.map((slice) => (
+          <div className="flex items-center gap-2" key={slice.label}>
+            <span aria-hidden="true" className={`size-2.5 rounded-full ${slice.className}`} />
+            <dt className="text-sm text-ink-muted">{slice.label}</dt>
+            <dd className="text-sm font-semibold text-ink">{formatMoney(slice.amountSen)}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function Tile({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: string;
+  tone?: 'neutral' | 'positive' | 'negative';
+}) {
+  const valueTone = tone === 'positive'
+    ? 'text-positive'
+    : tone === 'negative' ? 'text-negative' : 'text-ink';
+  return (
+    <div className="rounded-xl border border-hairline bg-black/25 px-4 py-3.5">
+      <dt className="text-sm text-ink-muted">{label}</dt>
+      <dd className={`mt-1 text-xl font-bold tabular-nums ${valueTone}`}>{value}</dd>
+    </div>
+  );
+}
+
 export function SummaryView({
   periodStart,
   summary,
   snapshotCount,
   hasSnapshots,
 }: SummaryViewProps) {
-  const metrics = [
-    ['Confirmed income', formatRM(summary.confirmedIncome)],
-    ['Commitments', formatRM(summary.activeCommitments)],
-    ['Savings', formatRM(summary.savings)],
-    ['Investments', formatRM(summary.investments)],
-    ['Personal spending', formatRM(summary.resolvedPersonalSpending)],
-    ['Total cash outflow', formatRM(summary.totalCashOutflow ?? 0)],
-    ['Friends owe', formatRM(summary.friendReceivables ?? 0)],
-    ['Paid on behalf of friends', formatRM(summary.paidOnBehalf ?? 0)],
-    [
-      'Upcoming commitments',
-      `${summary.upcomingCommitmentCount ?? 0} · ${formatRM(summary.upcomingCommitmentsSen ?? 0)}`,
-    ],
-    ['Pending requests', String(summary.pendingRequestCount ?? 0)],
-    ['Days to next salary', String(summary.daysToNextSalary ?? 'Not available')],
-  ] as const;
+  // Deliberately unused: the raw snapshot count is internal bookkeeping and no
+  // longer shown. Kept in the props so the page contract is unchanged.
+  void snapshotCount;
+
+  const remaining = summary.remainingSpendable;
+  const isOverspent = remaining < 0;
+  const income = summary.confirmedIncome;
+  const daysToSalary = summary.daysToNextSalary ?? null;
+  const unresolvedBills = summary.unresolvedBillCount ?? 0;
+  const pendingRequests = summary.pendingRequestCount ?? 0;
+  const upcomingCount = summary.upcomingCommitmentCount ?? 0;
+  const perDay = daysToSalary !== null && daysToSalary > 0 && remaining > 0
+    ? Math.floor(remaining / daysToSalary)
+    : null;
+
+  const attention = [
+    unresolvedBills > 0 && {
+      href: '/shared-bills',
+      text: `${unresolvedBills} shared ${unresolvedBills === 1 ? 'bill' : 'bills'} to resolve`,
+    },
+    pendingRequests > 0 && {
+      href: '/friends',
+      text: `${pendingRequests} payment ${pendingRequests === 1 ? 'request' : 'requests'} pending`,
+    },
+    upcomingCount > 0 && {
+      href: '/plan',
+      text: `${upcomingCount} upcoming · ${formatMoney(summary.upcomingCommitmentsSen ?? 0)}`,
+    },
+  ].filter((item): item is { href: string; text: string } => Boolean(item));
 
   return (
-    <main className="dashboard-shell">
-      <section className="dashboard-topline" aria-labelledby="dashboard-title">
-        <div>
-          <p className="eyebrow">Monthly control room</p>
-          <h1 id="dashboard-title">Personal Finance Tracker</h1>
-          <p className="dashboard-subtitle">{monthLabel(periodStart)}</p>
-        </div>
-        <form className="period-form" method="get">
-          <label>
-            Period
-            <input
-              name="month"
-              type="month"
-              required
-              defaultValue={periodStart.slice(0, 7)}
-            />
-          </label>
-          <button type="submit">View period</button>
-        </form>
+    <main className="dashboard-shell grid gap-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">
+          {monthLabel(periodStart)}
+        </h1>
+        <nav aria-label="Change month" className="flex items-center gap-2">
+          <Link
+            aria-label="Previous month"
+            className="rounded-lg border border-hairline px-3 py-2 text-ink-muted no-underline hover:border-hairline-strong hover:text-ink"
+            href={`/?month=${monthParam(addMonths(periodStart, -1))}`}
+          >
+            &lsaquo;
+          </Link>
+          <Link
+            className="rounded-lg border border-hairline px-3 py-2 text-sm text-ink-muted no-underline hover:border-hairline-strong hover:text-ink"
+            href="/"
+          >
+            This month
+          </Link>
+          <Link
+            aria-label="Next month"
+            className="rounded-lg border border-hairline px-3 py-2 text-ink-muted no-underline hover:border-hairline-strong hover:text-ink"
+            href={`/?month=${monthParam(addMonths(periodStart, 1))}`}
+          >
+            &rsaquo;
+          </Link>
+        </nav>
+      </header>
+
+      <section
+        aria-labelledby="remaining-heading"
+        className={`grid gap-2 rounded-2xl border px-5 py-6 ${
+          isOverspent
+            ? 'border-negative/50 bg-negative/10'
+            : 'border-hairline-strong bg-accent-soft'
+        }`}
+      >
+        <h2 className="text-sm font-semibold text-ink-muted" id="remaining-heading">
+          {isOverspent ? 'Over budget' : 'Remaining spendable'}
+        </h2>
+        <p
+          className={`text-5xl font-bold tracking-tight tabular-nums ${
+            isOverspent ? 'text-negative' : 'text-ink'
+          }`}
+        >
+          {formatMoney(remaining)}
+        </p>
+        {isOverspent ? (
+          <p className="text-sm text-negative">
+            Commitments and spending exceed confirmed income by{' '}
+            {formatMoney(-remaining)} this month.
+          </p>
+        ) : (
+          <p className="text-sm text-ink-muted">
+            {income > 0 ? `of ${formatMoney(income)} income` : 'No confirmed income yet'}
+            {daysToSalary !== null ? ` · ${daysToSalary} days to payday` : ''}
+            {perDay !== null ? ` · about ${formatMoney(perDay)} a day` : ''}
+          </p>
+        )}
+        {!hasSnapshots ? (
+          <p className="text-sm text-ink-muted">
+            Nothing is set up for this month yet.{' '}
+            <Link className="font-semibold text-accent underline" href="/plan">
+              Add income and commitments
+            </Link>
+            .
+          </p>
+        ) : null}
       </section>
 
-      <nav className="dashboard-nav" aria-label="Primary">
-        <a href="/plan">Monthly Plan</a>
-        <Link href="/transactions">Transactions</Link>
-        <a href="/expenses">Personal Expenses</a>
-        <a href="/shared-bills">Shared Bills</a>
-        <Link href="/friends">Friends</Link>
-        <Link href="/reports">Reports</Link>
-      </nav>
+      <AllocationBar
+        incomeSen={income}
+        slices={[
+          { label: 'Commitments', amountSen: summary.activeCommitments, className: 'bg-warning' },
+          { label: 'Savings', amountSen: summary.savings, className: 'bg-positive' },
+          { label: 'Investments', amountSen: summary.investments, className: 'bg-accent' },
+          {
+            label: 'Spent',
+            amountSen: summary.resolvedPersonalSpending,
+            className: 'bg-negative',
+          },
+          {
+            label: 'Left',
+            amountSen: remaining > 0 ? remaining : 0,
+            className: 'bg-ink-muted/40',
+          },
+        ]}
+      />
 
-      {!hasSnapshots ? (
-        <p className="notice-panel">
-          No plan snapshots for this month. Add templates in Monthly Plan, then generate it.
-        </p>
-      ) : <p className="muted-line">{snapshotCount} plan snapshots loaded.</p>}
-      {(summary.unresolvedBillCount ?? 0) > 0 ? (
-        <p className="warning-panel" role="status">
-          {summary.unresolvedBillCount}{' '}
-          unresolved shared {summary.unresolvedBillCount === 1 ? 'bill' : 'bills'}.
-          Cash outflow is included, but personal spending awaits resolution.
-        </p>
+      {attention.length > 0 ? (
+        <section aria-labelledby="attention-heading" className="grid gap-2">
+          <h2 className="text-sm font-semibold text-ink-muted" id="attention-heading">
+            Needs attention
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {attention.map((item) => (
+              <li key={item.href}>
+                <Link
+                  className="inline-block rounded-lg border border-warning/40 bg-warning/10 px-3.5 py-2 text-sm font-semibold text-warning no-underline hover:border-warning"
+                  href={item.href}
+                >
+                  {item.text}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
-      <section className="dashboard-hero" aria-labelledby="remaining-heading">
-        <div>
-          <p className="eyebrow">Available this month</p>
-          <h2 id="remaining-heading">Remaining spendable</h2>
-        </div>
-        <p className="hero-amount">{formatSignedRM(summary.remainingSpendable)}</p>
-        <p className="hero-note">
-          This is a conservative guide. It subtracts planned active commitments before they are paid.
-        </p>
-      </section>
-
-      <section className="quick-actions" aria-label="Quick actions">
-        <Link href="/expenses">Add personal expense</Link>
-        <Link href="/shared-bills">Add shared bill</Link>
-        <Link href="/transactions">View transactions</Link>
-        <Link href="/plan">
-          {hasSnapshots ? 'Edit income and commitments' : 'Add income and commitments'}
+      <section aria-label="Quick actions" className="flex flex-wrap gap-2">
+        <Link
+          className="rounded-lg border border-hairline-strong bg-accent-soft px-4 py-2.5 font-semibold text-ink no-underline hover:border-accent hover:bg-accent/20"
+          href="/expenses"
+        >
+          Add expense
+        </Link>
+        <Link
+          className="rounded-lg border border-hairline px-4 py-2.5 text-ink no-underline hover:border-hairline-strong"
+          href="/shared-bills"
+        >
+          Add shared bill
+        </Link>
+        <Link
+          className="rounded-lg border border-hairline px-4 py-2.5 text-ink-muted no-underline hover:border-hairline-strong hover:text-ink"
+          href="/transactions"
+        >
+          Transactions
         </Link>
       </section>
 
-      <section className="daily-workflow" aria-labelledby="daily-workflow-heading">
-        <h2 id="daily-workflow-heading">Today&apos;s workflow</h2>
-        <ol>
-          <li>Check remaining spendable before spending.</li>
-          <li>Record personal expenses right after paying.</li>
-          <li>Record shared bills first, then resolve friends when ready.</li>
-        </ol>
-      </section>
-
-      <dl className="metric-grid">
-        {metrics.map(([label, value]) => (
-          <div className="metric-card" key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
+      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Tile label="Confirmed income" tone="positive" value={formatMoney(income)} />
+        <Tile label="Commitments" value={formatMoney(summary.activeCommitments)} />
+        <Tile label="Personal spending" value={formatMoney(summary.resolvedPersonalSpending)} />
+        <Tile
+          label="Friends owe you"
+          tone={(summary.friendReceivables ?? 0) > 0 ? 'positive' : 'neutral'}
+          value={formatMoney(summary.friendReceivables ?? 0)}
+        />
       </dl>
+
+      <section aria-labelledby="detail-heading" className="grid gap-3">
+        <h2 className="text-sm font-semibold text-ink-muted" id="detail-heading">
+          Allocations and friends
+        </h2>
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Tile label="Savings" value={formatMoney(summary.savings)} />
+          <Tile label="Investments" value={formatMoney(summary.investments)} />
+          <Tile label="Total cash out" value={formatMoney(summary.totalCashOutflow ?? 0)} />
+          <Tile label="Paid for friends" value={formatMoney(summary.paidOnBehalf ?? 0)} />
+        </dl>
+      </section>
     </main>
   );
 }

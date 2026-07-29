@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addSen,
   formatAmountInput,
+  formatMoney,
   formatRM,
   parseAmountInput,
   parseRM,
@@ -124,5 +125,27 @@ describe('lenient amount entry', () => {
     expect(parseSignedAmountInput('0.05')).toEqual({ ok: true, sen: 5 });
     expect(parseSignedAmountInput('+0.05')).toEqual({ ok: true, sen: 5 });
     expect(parseSignedAmountInput('-')).toEqual({ ok: false, error: 'Enter an amount' });
+  });
+});
+
+describe('display formatting', () => {
+  it('groups thousands and keeps two decimals', () => {
+    expect(formatMoney(184235)).toBe('RM1,842.35');
+    expect(formatMoney(520000)).toBe('RM5,200.00');
+    expect(formatMoney(100000000)).toBe('RM1,000,000.00');
+    expect(formatMoney(0)).toBe('RM0.00');
+    expect(formatMoney(1)).toBe('RM0.01');
+    expect(formatMoney(99999)).toBe('RM999.99');
+  });
+
+  it('signs a negative amount without losing the grouping', () => {
+    expect(formatMoney(-90000)).toBe('-RM900.00');
+    expect(formatMoney(-184235)).toBe('-RM1,842.35');
+  });
+
+  it('leaves the strict storage format alone', () => {
+    // parseRM must still round-trip, so formatRM stays separator-free.
+    expect(formatRM(520000)).toBe('RM5200.00');
+    expect(parseRM(formatRM(520000))).toBe(520000);
   });
 });
