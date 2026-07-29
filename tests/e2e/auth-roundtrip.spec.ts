@@ -1,126 +1,65 @@
-import { randomUUID } from 'node:crypto';
+import { expect, test } from '@playwright/test';
 
-import { expect, test, type APIRequestContext } from '@playwright/test';
+import { createTestUser, signIn } from './support/auth';
 
-const APP_ORIGIN = 'http://localhost:3000';
-const SUPABASE_ORIGIN = 'http://127.0.0.1:54321';
-const MAILPIT_URL = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324';
+/**
+ * Covers the sign-in the app actually ships.
+ *
+ * This spec previously exercised a passwordless round trip: request a link, poll
+ * Mailpit, follow the confirmation URL. That flow was replaced by email and
+ * password, so the test was asserting against a feature that no longer exists.
+ */
 
-test('completes a local passwordless sign-in roundtrip', async ({
+test('signs an owner in with a password and sets a session cookie', async ({
   context,
   page,
   request,
 }) => {
-  const email = `auth-roundtrip-${Date.now()}-${randomUUID()}@example.test`;
-  const navigationHistory: string[] = [];
-  page.on('framenavigated', (frame) => {
-    if (frame === page.mainFrame()) {
-      const url = new URL(frame.url());
-      navigationHistory.push(`${url.origin}${url.pathname}`);
-    }
-  });
+  await signIn(page, request, 'auth-roundtrip');
 
-  await page.goto('/auth/sign-in');
-  await page.getByLabel('Email').fill(email);
-  await page.getByRole('button', { name: 'Send sign-in link' }).click();
-  await expect(page.getByRole('status')).toHaveText('Check your email for a sign-in link.');
-
-  const confirmationUrl = await waitForConfirmationUrl(request, email);
-  await page.evaluate((url) => {
-    window.location.assign(url);
-  }, confirmationUrl);
-
-  await expect
-    .poll(
-      () => {
-        const currentUrl = new URL(page.url());
-        return `${currentUrl.origin}${currentUrl.pathname}`;
-      },
-      {
-        message: `Navigation history: ${navigationHistory.join(' -> ')}`,
-      },
-    )
-    .toBe(`${APP_ORIGIN}/`);
-  await expect(
-    page.getByRole('heading', { name: 'Personal Finance Tracker' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
   const cookies = await context.cookies();
   expect(
-    cookies.some(
-      (cookie) =>
-        cookie.domain === 'localhost' &&
-        /^sb-.+-auth-token(?:\.\d+)?$/.test(cookie.name) &&
-        cookie.value.length > 0,
-    ),
+    cookies.some((cookie) => (
+      cookie.domain === 'localhost'
+      && /^sb-.+-auth-token(?:\.\d+)?$/.test(cookie.name)
+      && cookie.value.length > 0
+    )),
   ).toBe(true);
+
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL(/\/auth\/sign-in$/);
 });
 
-async function waitForConfirmationUrl(request: APIRequestContext, email: string) {
-  const deadline = Date.now() + 15_000;
-  const search = new URL('/api/v1/search', MAILPIT_URL);
-  search.searchParams.set('query', `to:${email}`);
+test('rejects a wrong password without revealing whether the account exists', async ({
+  page,
+  request,
+}) => {
+  const user = await createTestUser(request, 'auth-wrong-password');
 
-  while (Date.now() < deadline) {
-    const searchResponse = await request.get(search.toString());
-    if (searchResponse.ok()) {
-      const mailbox = (await searchResponse.json()) as MailpitSearchResponse;
-      const messageId = mailbox.messages[0]?.ID;
+  await page.goto('/auth/sign-in');
+  await page.getByLabel('Email').fill(user.email);
+  await page.getByLabel('Password').fill('definitely-not-the-password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
 
-      if (messageId) {
-        const messageResponse = await request.get(
-          new URL(`/api/v1/message/${encodeURIComponent(messageId)}`, MAILPIT_URL).toString(),
-        );
+  await expect(page.getByRole('alert')).toHaveText('Email or password is incorrect.');
+  await expect(page).toHaveURL(/\/auth\/sign-in/);
+});
 
-        if (messageResponse.ok()) {
-          const message = (await messageResponse.json()) as MailpitMessage;
-          const confirmationUrl = findConfirmationUrl(message.HTML, message.Text);
-
-          if (confirmationUrl) {
-            return confirmationUrl;
-          }
-        }
-      }
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 250));
+test('sends an unauthenticated visitor to sign-in', async ({ page }) => {
+  for (const route of ['/', '/expenses', '/plan', '/transactions']) {
+    await page.goto(route);
+    await expect(page).toHaveURL(/\/auth\/sign-in/);
   }
+});
 
-  throw new Error('Timed out waiting for the local Supabase auth email.');
-}
+test('keeps the session across a reload', async ({ page, request }) => {
+  await signIn(page, request, 'auth-persist');
 
-function findConfirmationUrl(html: string, text: string) {
-  const candidates = [
-    ...html.matchAll(/href=["']([^"']+)["']/gi),
-    ...text.matchAll(/https?:\/\/[^\s<>"']+/gi),
-  ];
+  await page.goto('/expenses');
+  await page.reload();
 
-  for (const candidate of candidates) {
-    const rawUrl = (candidate[1] ?? candidate[0]).replaceAll('&amp;', '&');
-
-    try {
-      const url = new URL(rawUrl);
-      if (
-        (url.origin === SUPABASE_ORIGIN && url.pathname === '/auth/v1/verify') ||
-        (url.origin === APP_ORIGIN && url.pathname === '/auth/confirm')
-      ) {
-        return url.toString();
-      }
-    } catch {
-      // Ignore non-URL href values in the captured email.
-    }
-  }
-
-  return null;
-}
-
-type MailpitSearchResponse = {
-  messages: Array<{
-    ID: string;
-  }>;
-};
-
-type MailpitMessage = {
-  HTML: string;
-  Text: string;
-};
+  // Still inside the app rather than bounced back to sign-in.
+  await expect(page).toHaveURL(/\/expenses$/);
+});

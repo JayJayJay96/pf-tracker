@@ -1,208 +1,140 @@
-import { randomUUID } from 'node:crypto';
+import { expect, test, type Page } from '@playwright/test';
 
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { signIn } from './support/auth';
 
-const APP_ORIGIN = 'http://localhost:3000';
-const SUPABASE_ORIGIN = 'http://127.0.0.1:54321';
-const MAILPIT_URL = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324';
-
-test('creates monthly snapshots and preserves a historical spendable view', async ({
-  page,
-  request,
-}) => {
-  await signIn(page, request);
-  await page.goto('/plan?month=2026-07');
-
-  await addTemplate(page, {
-    name: 'Salary',
-    type: 'income',
-    amount: '5000.00',
-    day: '25',
-    status: 'confirmed',
-  });
-  await addTemplate(page, {
-    name: 'Rent',
-    type: 'commitment',
-    amount: '1200.00',
-    day: '1',
-  });
-  await addTemplate(page, {
-    name: 'Emergency fund',
-    type: 'savings',
-    amount: '500.00',
-    day: '15',
-  });
-  await addTemplate(page, {
-    name: 'Index fund',
-    type: 'investment',
-    amount: '300.00',
-    day: '20',
-  });
-
-  await page.getByRole('button', { name: 'Generate July 2026' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Generated snapshots for July 2026' }),
-  ).toBeVisible();
-  await expect(page.getByText('Salary', { exact: true }).last()).toBeVisible();
-
-  const snapshots = page.getByRole(
-    'heading',
-    { name: 'Generated snapshots for July 2026' },
-  ).locator('..');
-  const salarySnapshot = snapshots.locator('li').filter({
-    has: page.getByText('Salary', { exact: true }),
-  });
-  await salarySnapshot.getByText('Update actual').click();
-  await salarySnapshot.getByLabel('Actual amount').fill('5250.00');
-  await salarySnapshot.getByRole('button', { name: 'Save entry actual' }).click();
-
-  const rentSnapshot = snapshots.locator('li').filter({
-    has: page.getByText('Rent', { exact: true }),
-  });
-  await rentSnapshot.getByText('Update actual').click();
-  await rentSnapshot.getByLabel('Status').selectOption('paid');
-  await rentSnapshot.getByLabel('Actual amount').fill('1150.00');
-  await rentSnapshot.getByLabel('Paid date').fill('2026-07-02');
-  await rentSnapshot.getByRole('button', { name: 'Save entry actual' }).click();
-  await expect(rentSnapshot).toContainText('Actual RM1150.00');
-  await expect(rentSnapshot).toContainText('paid 2026-07-02');
-
-  await page.goto('/?month=2026-07');
-  await expect(page.getByRole('heading', { name: 'July 2026' })).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: 'Remaining spendable' }).locator('..'),
-  ).toContainText('RM3300.00');
-  await expect(page.getByText('planned active commitments before they are paid')).toBeVisible();
-
-  await page.goto('/plan?month=2026-07');
-  await page.getByText('Edit Salary', { exact: true }).click();
-  const salaryEditor = page.getByText('Edit Salary', { exact: true }).locator('..');
-  await salaryEditor.getByLabel('Amount').fill('5500.00');
-  await salaryEditor.getByRole('button', { name: 'Save future template' }).click();
-
-  await page.getByRole('textbox', { name: 'Month' }).fill('2026-08');
-  await page.getByRole('button', { name: 'View month' }).click();
-  await page.getByRole('button', { name: 'Generate August 2026' }).click();
-
-  await page.goto('/?month=2026-08');
-  await expect(
-    page.getByRole('heading', { name: 'Remaining spendable' }).locator('..'),
-  ).toContainText('RM3500.00');
-
-  await page.getByLabel('Period').fill('2026-07');
-  await page.getByRole('button', { name: 'View period' }).click();
-  await expect(page.getByRole('heading', { name: 'July 2026' })).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: 'Remaining spendable' }).locator('..'),
-  ).toContainText('RM3300.00');
-});
-
-/*
- * NOTE: this helper is stale and this spec cannot pass as written. It predates
- * two earlier changes, independently of the plan-field rework:
- *   - it drives a magic-link sign-in ("Send sign-in link"); the app uses a
- *     password form
- *   - it targets a single "Add template" heading and button; the plan page now
- *     has three per-type sections (Add income / Add commitment / Add allocation)
- * The plan-field rework additionally renamed the day field per type and removed
- * "Effective start" entirely. Rewriting this spec is its own task.
+/**
+ * Recording what actually happened against a generated month, and confirming a
+ * past month keeps its own figures once a later month diverges.
+ *
+ * The everyday setup-to-dashboard path lives in owner-journey.spec.ts; this spec
+ * covers the parts unique to generated entries.
  */
-async function addTemplate(
-  page: Page,
-  input: {
-    name: string;
-    type: 'income' | 'commitment' | 'savings' | 'investment';
-    amount: string;
-    day: string;
-    status?: 'confirmed' | 'active' | 'planned';
-  },
-) {
-  const form = page.getByRole('heading', { name: 'Add template' }).locator('..').locator('form');
+
+function formWithButton(page: Page, name: string) {
+  return page.locator('form', { has: page.getByRole('button', { name, exact: true }) });
+}
+
+async function addRecurring(page: Page, input: {
+  section: 'Add income' | 'Add commitment' | 'Add allocation';
+  name: string;
+  amount: string;
+  day: string;
+  dayLabel: 'Paid on day' | 'Charged on day' | 'Transferred on day';
+  status?: string;
+  type?: 'savings' | 'investment';
+}) {
+  const form = formWithButton(page, input.section);
   await form.getByLabel('Name').fill(input.name);
-  await form.getByLabel('Type').selectOption(input.type);
+  if (input.type) {
+    await form.getByLabel('Type').selectOption(input.type);
+  }
   await form.getByLabel('Amount').fill(input.amount);
-  await form.getByLabel('Expected or due day').fill(input.day);
+  await form.getByLabel(input.dayLabel).fill(input.day);
   if (input.status) {
     await form.getByLabel('Status').selectOption(input.status);
   }
-  await form.getByRole('button', { name: 'Add template' }).click();
+  await form.getByRole('button', { name: input.section }).click();
   await expect(page.getByText(input.name, { exact: true }).first()).toBeVisible();
 }
 
-async function signIn(page: Page, request: APIRequestContext) {
-  const email = `monthly-plan-${Date.now()}-${randomUUID()}@example.test`;
-
-  await page.goto('/auth/sign-in');
-  await page.getByLabel('Email').fill(email);
-  await page.getByRole('button', { name: 'Send sign-in link' }).click();
-  await expect(page.getByRole('status')).toHaveText('Check your email for a sign-in link.');
-
-  const confirmationUrl = await waitForConfirmationUrl(request, email);
-  await page.evaluate((url) => {
-    window.location.assign(url);
-  }, confirmationUrl);
-  await expect(page).toHaveURL(`${APP_ORIGIN}/`);
+function entryRow(page: Page, name: string) {
+  return page
+    .getByRole('heading', { name: /^Generated monthly entries for/ })
+    .locator('..')
+    .locator('li')
+    .filter({ has: page.getByText(name, { exact: true }) });
 }
 
-async function waitForConfirmationUrl(request: APIRequestContext, email: string) {
-  const deadline = Date.now() + 15_000;
-  const search = new URL('/api/v1/search', MAILPIT_URL);
-  search.searchParams.set('query', `to:${email}`);
+test('records actuals against generated entries and preserves past months', async ({
+  page,
+  request,
+}) => {
+  await signIn(page, request, 'monthly-plan');
+  await page.goto('/plan?month=2026-07');
 
-  while (Date.now() < deadline) {
-    const searchResponse = await request.get(search.toString());
-    if (searchResponse.ok()) {
-      const mailbox = (await searchResponse.json()) as MailpitSearchResponse;
-      const messageId = mailbox.messages[0]?.ID;
+  await addRecurring(page, {
+    section: 'Add income',
+    name: 'Salary',
+    amount: '5000',
+    day: '25',
+    dayLabel: 'Paid on day',
+    status: 'confirmed',
+  });
+  await addRecurring(page, {
+    section: 'Add commitment',
+    name: 'Rent',
+    amount: '1200',
+    day: '1',
+    dayLabel: 'Charged on day',
+    status: 'active',
+  });
+  await addRecurring(page, {
+    section: 'Add allocation',
+    name: 'Emergency fund',
+    amount: '500',
+    day: '15',
+    dayLabel: 'Transferred on day',
+    type: 'savings',
+  });
+  await addRecurring(page, {
+    section: 'Add allocation',
+    name: 'Index fund',
+    amount: '300',
+    day: '20',
+    dayLabel: 'Transferred on day',
+    type: 'investment',
+  });
 
-      if (messageId) {
-        const messageResponse = await request.get(
-          new URL(`/api/v1/message/${encodeURIComponent(messageId)}`, MAILPIT_URL).toString(),
-        );
-        if (messageResponse.ok()) {
-          const message = (await messageResponse.json()) as MailpitMessage;
-          const confirmationUrl = findConfirmationUrl(message.HTML, message.Text);
-          if (confirmationUrl) {
-            return confirmationUrl;
-          }
-        }
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
+  // Entries are generated on read, so the section is already populated.
+  await page.reload();
+  await expect(entryRow(page, 'Salary')).toBeVisible();
 
-  throw new Error('Timed out waiting for the local Supabase auth email.');
-}
+  const salary = entryRow(page, 'Salary');
+  await salary.getByText('Update actual').click();
+  await salary.getByLabel('Actual amount').fill('5250');
+  await salary.getByRole('button', { name: 'Save entry actual' }).click();
+  await expect(entryRow(page, 'Salary')).toContainText('Actual RM5250.00');
 
-function findConfirmationUrl(html: string, text: string) {
-  const candidates = [
-    ...html.matchAll(/href=["']([^"']+)["']/gi),
-    ...text.matchAll(/https?:\/\/[^\s<>"']+/gi),
-  ];
+  const rent = entryRow(page, 'Rent');
+  await rent.getByText('Update actual').click();
+  await rent.getByLabel('Status').selectOption('paid');
+  await rent.getByLabel('Actual amount').fill('1150');
+  await rent.getByLabel('Paid date').fill('2026-07-02');
+  await rent.getByRole('button', { name: 'Save entry actual' }).click();
+  await expect(entryRow(page, 'Rent')).toContainText('Actual RM1150.00');
+  await expect(entryRow(page, 'Rent')).toContainText('paid 2026-07-02');
 
-  for (const candidate of candidates) {
-    const rawUrl = (candidate[1] ?? candidate[0]).replaceAll('&amp;', '&');
-    try {
-      const url = new URL(rawUrl);
-      if (
-        (url.origin === SUPABASE_ORIGIN && url.pathname === '/auth/v1/verify')
-        || (url.origin === APP_ORIGIN && url.pathname === '/auth/confirm')
-      ) {
-        return url.toString();
-      }
-    } catch {
-      // Ignore non-URL href values in the captured email.
-    }
-  }
+  // 5250 actual income less 1150 rent, 500 savings and 300 investment.
+  await page.goto('/?month=2026-07');
+  await expect(page.getByRole('heading', { name: 'July 2026' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Remaining spendable' }))
+    .toContainText('RM3,300.00');
 
-  return null;
-}
+  // Raising the recurring amount must not rewrite a month already recorded.
+  await page.goto('/plan?month=2026-07');
+  await page.getByText('Edit Salary', { exact: true }).click();
+  const editor = page.getByText('Edit Salary', { exact: true }).locator('..');
+  await editor.getByLabel('Amount').fill('5500');
+  await editor.getByRole('button', { name: 'Save recurring item' }).click();
 
-type MailpitSearchResponse = {
-  messages: Array<{ ID: string }>;
-};
+  await page.goto('/?month=2026-08');
+  await expect(page.getByRole('region', { name: 'Remaining spendable' }))
+    .toContainText('RM3,500.00');
 
-type MailpitMessage = {
-  HTML: string;
-  Text: string;
-};
+  await page.goto('/?month=2026-07');
+  await expect(page.getByRole('region', { name: 'Remaining spendable' }))
+    .toContainText('RM3,300.00');
+});
+
+test('steps between months from the dashboard', async ({ page, request }) => {
+  await signIn(page, request, 'monthly-plan-stepper');
+
+  await page.goto('/?month=2026-07');
+  await expect(page.getByRole('heading', { name: 'July 2026' })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Next month' }).click();
+  await expect(page.getByRole('heading', { name: 'August 2026' })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Previous month' }).click();
+  await expect(page.getByRole('heading', { name: 'July 2026' })).toBeVisible();
+});

@@ -37,6 +37,12 @@ npm run test:e2e
 npm run build
 ```
 
+End-to-end tests create accounts and financial records, so they only run against
+a local Supabase. Start it with `npx supabase start`, then point `.env.local` at
+the local API URL, publishable key, and `SUPABASE_SERVICE_ROLE_KEY` reported by
+`npx supabase status`. The suite refuses to run when the Supabase host is not
+`127.0.0.1` or `localhost`, so it cannot create data in a real project.
+
 ## Privacy and offline behavior
 
 Authenticated pages, API responses, and exports stay server-authorized and are
