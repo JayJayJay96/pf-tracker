@@ -1,11 +1,23 @@
 import Link from 'next/link';
 
-import { formatRM } from '../../domain/money';
+import { formatMoney } from '../../domain/money';
+import {
+  Disclosure,
+  Empty,
+  Field,
+  FilterForm,
+  PageShell,
+  Record,
+  RecordList,
+  Section,
+} from '../ui/page';
 import type {
   TransactionFilters,
   TransactionHistory,
   TransactionHistoryItem,
 } from './queries';
+
+const LINK_CLASS = 'text-accent underline';
 
 function typeLabel(transaction: TransactionHistoryItem): string {
   if (transaction.type === 'personal_expense') return 'Personal expense';
@@ -17,21 +29,16 @@ function typeLabel(transaction: TransactionHistoryItem): string {
 function editorLink(transaction: TransactionHistoryItem) {
   if (transaction.type === 'personal_expense') {
     return (
-      <Link href={`/expenses#transaction-${transaction.id}`}>
+      <Link className={LINK_CLASS} href={`/expenses#transaction-${transaction.id}`}>
         Edit personal expense
       </Link>
     );
   }
-  if (transaction.sharedStatus === 'unresolved') {
-    return (
-      <Link href={`/shared-bills#transaction-${transaction.id}`}>
-        Resolve shared bill
-      </Link>
-    );
-  }
   return (
-    <Link href={`/shared-bills#transaction-${transaction.id}`}>
-      View locked shared bill
+    <Link className={LINK_CLASS} href={`/shared-bills#transaction-${transaction.id}`}>
+      {transaction.sharedStatus === 'unresolved'
+        ? 'Resolve shared bill'
+        : 'View locked shared bill'}
     </Link>
   );
 }
@@ -44,72 +51,60 @@ export function TransactionHistoryView({
   filters: TransactionFilters;
 }) {
   return (
-    <main>
-      <h1>Transactions</h1>
-      <p>
-        One owner-only history for personal expenses and shared bills.
-        Editing stays in each record&apos;s type-specific workflow.
-      </p>
-
-      <section aria-labelledby="filters-heading">
-        <h2 id="filters-heading">Filter transactions</h2>
-        <form method="get">
-          <label>
-            Search description or merchant
+    <PageShell
+      intro={'One history for personal expenses and shared bills. Editing stays in '
+        + 'each record’s own workflow.'}
+      title="Transactions"
+    >
+      <Section id="filters" title="Filter transactions">
+        <FilterForm>
+          <Field label="Search description or merchant">
             <input name="search" defaultValue={filters.search} />
-          </label>
-          <label>
-            From
+          </Field>
+          <Field label="From">
             <input name="from" type="date" defaultValue={filters.from} />
-          </label>
-          <label>
-            To
+          </Field>
+          <Field label="To">
             <input name="to" type="date" defaultValue={filters.to} />
-          </label>
-          <label>
-            Category
+          </Field>
+          <Field label="Category">
             <select name="categoryId" defaultValue={filters.categoryId ?? ''}>
               <option value="">All categories</option>
               {history.categories.map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
-          </label>
-          <label>
-            Payment method
+          </Field>
+          <Field label="Payment method">
             <select name="paymentMethod" defaultValue={filters.paymentMethod ?? ''}>
               <option value="">All payment methods</option>
               <option value="tng">Touch &apos;n Go</option>
               <option value="cash">Cash</option>
             </select>
-          </label>
-          <label>
-            Transaction type
+          </Field>
+          <Field label="Transaction type">
             <select name="type" defaultValue={filters.type ?? ''}>
               <option value="">Personal and shared</option>
               <option value="personal">Personal</option>
               <option value="shared">Shared</option>
             </select>
-          </label>
-          <label>
-            Shared state
+          </Field>
+          <Field label="Shared state">
             <select name="sharedStatus" defaultValue={filters.sharedStatus ?? ''}>
               <option value="">Any shared state</option>
               <option value="unresolved">Unresolved</option>
               <option value="resolved">Resolved</option>
             </select>
-          </label>
-          <label>
-            Friend
+          </Field>
+          <Field label="Friend">
             <select name="friendId" defaultValue={filters.friendId ?? ''}>
               <option value="">All friends</option>
               {history.friends.map((friend) => (
                 <option key={friend.id} value={friend.id}>{friend.name}</option>
               ))}
             </select>
-          </label>
-          <label>
-            Payment-request status
+          </Field>
+          <Field label="Payment-request status">
             <select name="requestStatus" defaultValue={filters.requestStatus ?? ''}>
               <option value="">Any payment status</option>
               <option value="unrequested">Unrequested</option>
@@ -117,74 +112,88 @@ export function TransactionHistoryView({
               <option value="paid">Paid</option>
               <option value="forgiven">Forgiven</option>
             </select>
-          </label>
-          <label>
-            Sort
+          </Field>
+          <Field label="Sort">
             <select name="sort" defaultValue={filters.sort}>
               <option value="date">Transaction date</option>
               <option value="amount">Amount</option>
               <option value="newest">Newest recorded</option>
               <option value="friend_outstanding">Friend outstanding</option>
             </select>
-          </label>
-          <button type="submit">Apply filters</button>
-        </form>
-      </section>
+          </Field>
+          <button
+            className="justify-self-start rounded-lg border border-hairline bg-transparent px-4 py-2.5 text-ink hover:border-hairline-strong"
+            type="submit"
+          >
+            Apply filters
+          </button>
+        </FilterForm>
+      </Section>
 
-      <section aria-labelledby="history-heading">
-        <h2 id="history-heading">Unified history</h2>
+      <Section id="history" title="Unified history">
         {history.transactions.length === 0 ? (
-          <p>No transactions match these filters.</p>
+          <Empty>No transactions match these filters.</Empty>
         ) : (
-          <ul>
+          <RecordList>
             {history.transactions.map((transaction) => (
-              <li key={transaction.id}>
-                <details>
-                  <summary>
-                    {transaction.transactionDate} — {transaction.description}:{' '}
-                    {formatRM(transaction.amountSen)}
-                  </summary>
-                  <p>{typeLabel(transaction)} · {
-                    transaction.paymentMethod === 'tng' ? 'Touch n Go' : 'Cash'
-                  }</p>
-                  {transaction.merchant ? <p>Merchant: {transaction.merchant}</p> : null}
-                  {transaction.categoryName
-                    ? <p>Category: {transaction.categoryName}</p>
-                    : null}
-                  {transaction.type === 'shared_expense'
-                    && transaction.sharedStatus === 'resolved' ? (
-                      <>
-                        <p>
-                          Your portion {formatRM(transaction.userPortionSen)}; current friend
-                          outstanding {formatRM(transaction.friendOutstandingSen)}
-                        </p>
-                        <p>Resolved shared allocations are locked.</p>
-                        <ul>
-                          {transaction.friendPortions.map((portion) => (
-                            <li key={`${portion.friendId}:${portion.requestId ?? portion.status}`}>
-                              {portion.friendName}: {formatRM(portion.amountSen)} — {portion.status}
-                              {portion.requestId ? (
-                                <>
-                                  {' '}
-                                  <Link
-                                    href={`/friends/${portion.friendId}/requests/${portion.requestId}`}
-                                  >
-                                    View payment request
-                                  </Link>
-                                </>
-                              ) : null}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : null}
-                  <p>{editorLink(transaction)}</p>
-                </details>
-              </li>
+              <Record key={transaction.id}>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <strong className="text-ink">{transaction.description}</strong>
+                  <span className="font-semibold text-ink tabular-nums">
+                    {formatMoney(transaction.amountSen)}
+                  </span>
+                </div>
+                <p className="text-sm text-ink-muted">
+                  <time dateTime={transaction.transactionDate}>
+                    {transaction.transactionDate}
+                  </time>
+                  {' · '}
+                  {typeLabel(transaction)}
+                  {' · '}
+                  {transaction.paymentMethod === 'tng' ? 'Touch n Go' : 'Cash'}
+                  {transaction.categoryName ? ` · ${transaction.categoryName}` : ''}
+                  {transaction.merchant ? ` · ${transaction.merchant}` : ''}
+                </p>
+
+                {transaction.type === 'shared_expense'
+                  && transaction.sharedStatus === 'resolved' ? (
+                    <Disclosure summary="Portions">
+                      <p className="text-sm text-ink-muted">
+                        Your portion {formatMoney(transaction.userPortionSen)}; friends
+                        still owe {formatMoney(transaction.friendOutstandingSen)}. Resolved
+                        shared allocations are locked.
+                      </p>
+                      <ul className="grid list-none gap-1 p-0">
+                        {transaction.friendPortions.map((portion) => (
+                          <li
+                            className="text-sm text-ink-muted"
+                            key={`${portion.friendId}:${portion.requestId ?? portion.status}`}
+                          >
+                            {portion.friendName}: {formatMoney(portion.amountSen)} —{' '}
+                            {portion.status}
+                            {portion.requestId ? (
+                              <>
+                                {' '}
+                                <Link
+                                  className={LINK_CLASS}
+                                  href={`/friends/${portion.friendId}/requests/${portion.requestId}`}
+                                >
+                                  View payment request
+                                </Link>
+                              </>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </Disclosure>
+                  ) : null}
+
+                <p className="text-sm">{editorLink(transaction)}</p>
+              </Record>
             ))}
-          </ul>
+          </RecordList>
         )}
-      </section>
-    </main>
+      </Section>
+    </PageShell>
   );
 }
