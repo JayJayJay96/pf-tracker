@@ -44,6 +44,31 @@ function isGenerationRow(value: unknown): value is GenerationRow {
     && (row.generated_count as number) >= 0;
 }
 
+/**
+ * Makes sure a month's entries exist before a screen reads them, and never
+ * prevents that screen from rendering.
+ *
+ * Recurring income and commitments only reach the dashboard once they have been
+ * generated into entries for that month. Leaving that to a button meant a new
+ * month opened showing RM0.00 until the owner remembered to press it, which reads
+ * as the app having lost their money. The RPC inserts only missing rows
+ * (`on conflict … do nothing`), so calling it on read is safe to repeat.
+ *
+ * Failures are swallowed deliberately: this runs on a read path, and a month that
+ * could not be generated should still render whatever already exists rather than
+ * replacing the screen with an error.
+ */
+export async function ensureMonthlyPlan(
+  client: MonthlyPlanRpcClient,
+  periodStart: ISODate,
+): Promise<void> {
+  try {
+    await generateMonthlyPlan(client, { periodStart });
+  } catch {
+    // Intentionally ignored; the caller renders with the entries that exist.
+  }
+}
+
 /** Generates immutable monthly snapshots through the authenticated database RPC. */
 export async function generateMonthlyPlan(
   client: MonthlyPlanRpcClient,

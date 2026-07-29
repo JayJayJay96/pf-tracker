@@ -5,6 +5,7 @@ import { MonthlyPlanView } from '../../../src/features/plan/monthly-plan-view';
 import { getMonthlyPlan } from '../../../src/features/plan/queries';
 import { createPlanRepository } from '../../../src/features/plan/supabase-repository';
 import { getCurrentUserId } from '../../../src/lib/auth/current-user';
+import { ensureMonthlyPlan } from '../../../src/lib/supabase/monthly-plan';
 import { createClient } from '../../../src/lib/supabase/server';
 
 import {
@@ -52,6 +53,8 @@ export default async function MonthlyPlanPage({ searchParams }: MonthlyPlanPageP
   if (!userId) {
     redirect('/auth/sign-in');
   }
+  // Keep the generated list consistent with what the dashboard reads.
+  await ensureMonthlyPlan(client, periodStart);
   const plan = await getMonthlyPlan(createPlanRepository(client), userId, periodStart);
 
   return (

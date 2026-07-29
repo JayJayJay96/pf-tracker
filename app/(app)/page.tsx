@@ -5,6 +5,7 @@ import { getDashboardSummary } from '../../src/features/dashboard/queries';
 import { createDashboardRepository } from '../../src/features/dashboard/supabase-repository';
 import { SummaryView } from '../../src/features/dashboard/summary-view';
 import { getCurrentUserId } from '../../src/lib/auth/current-user';
+import { ensureMonthlyPlan } from '../../src/lib/supabase/monthly-plan';
 import { createClient } from '../../src/lib/supabase/server';
 
 export const metadata = {
@@ -55,6 +56,9 @@ export default async function HomePage({ searchParams }: HomePageProps = {}) {
   if (!userId) {
     redirect('/auth/sign-in');
   }
+  // Recurring items must exist as entries for this month before the summary is
+  // read, or a freshly opened month reports RM0.00 until Generate is pressed.
+  await ensureMonthlyPlan(client, periodStart);
   const summary = await getDashboardSummary(
     createDashboardRepository(client),
     userId,
