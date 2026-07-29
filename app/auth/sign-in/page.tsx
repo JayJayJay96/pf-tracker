@@ -11,7 +11,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const params = await searchParams;
 
   return (
-    <main>
+    <main className="auth-shell">
       <h1>Sign in</h1>
       {params.error ? <p role="alert">The sign-in link is invalid or has expired.</p> : null}
       <SignInForm />
