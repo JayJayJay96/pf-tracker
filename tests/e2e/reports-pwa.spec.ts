@@ -36,7 +36,7 @@ test('restores an owner draft, reports by transaction date, and exports privatel
 
   await page.goto('/reports?range=month&month=2026-06');
   await expect(page.getByRole('heading', { name: 'June 2026 report' })).toBeVisible();
-  const summary = page.getByRole('heading', { name: 'Financial summary' }).locator('..');
+  const summary = page.getByRole('region', { name: 'Financial summary' });
   await expect(summary.getByText('Personal spending').locator('..')).toContainText('RM12.50');
   await expect(summary.getByText('Total amount paid').locator('..')).toContainText('RM12.50');
   await expect(page.getByText('Backdated draft lunch')).toBeVisible();

@@ -23,9 +23,9 @@ test('snapshots two bills, leaves a later bill unrequested, and settles without 
     .toContainText('RM15.00 outstanding');
   await page.getByRole('link', { name: 'Alex' }).click();
 
-  const requestForm = page.getByRole('heading', {
-    name: 'Create lump-sum request',
-  }).locator('..').locator('form');
+  const requestForm = page
+    .getByRole('region', { name: 'Create lump-sum request' })
+    .locator('form');
   await requestForm.getByLabel(/Dinner/).check();
   await requestForm.getByLabel(/Movie/).check();
   await requestForm.getByLabel('Request date').fill('2026-07-18');

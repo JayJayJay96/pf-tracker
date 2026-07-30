@@ -63,7 +63,8 @@ describe('ReportView', () => {
 
     expect(markup).toContain('July 2026 report');
     expect(markup).toContain('Remaining spendable');
-    expect(markup).toContain('RM3010.00');
+    // Grouped for readability now; formatRM stays separator-free for storage.
+    expect(markup).toContain('RM3,010.00');
     expect(markup).toContain('Compared with June 2026');
     expect(markup).toContain('Dinner');
     expect(markup).toContain('Your portion');
@@ -100,6 +101,8 @@ describe('ReportView', () => {
       today="2026-07-28"
     />);
 
-    expect(markup).toContain('−RM12.50');
+    // One minus glyph across the app: the ASCII hyphen formatMoney emits,
+    // replacing this screen's lone use of U+2212.
+    expect(markup).toContain('-RM12.50');
   });
 });

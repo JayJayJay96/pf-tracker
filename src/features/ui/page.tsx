@@ -111,6 +111,92 @@ export function Record({ id, children }: { id?: string; children: ReactNode }) {
   );
 }
 
+/** Grid of label/value pairs, for a block of figures rather than a table. */
+export function Figures({
+  rows,
+}: {
+  rows: ReadonlyArray<readonly [string, string]>;
+}) {
+  return (
+    <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {rows.map(([label, value]) => (
+        <div
+          className="rounded-xl border border-hairline bg-black/25 px-4 py-3"
+          key={label}
+        >
+          <dt className="text-sm text-ink-muted">{label}</dt>
+          <dd className="mt-1 font-bold text-ink tabular-nums">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * Tabular data. Scrolls inside its own container so a wide table never forces the
+ * page itself sideways, and takes a caption because a table needs naming.
+ */
+export function DataTable({
+  caption,
+  head,
+  children,
+}: {
+  caption: string;
+  head: readonly string[];
+  children: ReactNode;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-left text-sm">
+        <caption className="sr-only">{caption}</caption>
+        <thead>
+          <tr>
+            {head.map((heading) => (
+              <th
+                className="border-b border-hairline px-3 py-2 font-semibold text-ink-muted"
+                key={heading}
+                scope="col"
+              >
+                {heading}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+/** A row whose first cell names the row. */
+export function DataRow({
+  header,
+  cells,
+}: {
+  header: string;
+  cells: readonly string[];
+}) {
+  return (
+    <tr>
+      <th
+        className="border-b border-hairline/60 px-3 py-2 font-normal text-ink"
+        scope="row"
+      >
+        {header}
+      </th>
+      {cells.map((cell, index) => (
+        <td
+          className="border-b border-hairline/60 px-3 py-2 text-ink tabular-nums"
+          // Position is the only thing distinguishing one value cell from another.
+          key={index}
+        >
+          {cell}
+        </td>
+      ))}
+    </tr>
+  );
+}
+
 /** Empty state. A screen should say why a list is empty, not just show nothing. */
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="text-sm text-ink-muted">{children}</p>;

@@ -1,10 +1,22 @@
 import Link from 'next/link';
 
-import { formatRM } from '../../domain/money';
-import type {
-  ReportPeriodInput,
-  ReportResult,
-} from './queries';
+import { formatMoney } from '../../domain/money';
+import {
+  DataRow,
+  DataTable,
+  Disclosure,
+  Empty,
+  Field,
+  Figures,
+  FilterForm,
+  PageShell,
+  Record,
+  RecordList,
+  Section,
+} from '../ui/page';
+import type { ReportPeriodInput, ReportResult } from './queries';
+
+const LINK_CLASS = 'text-accent underline';
 
 function displayDate(value: string): string {
   return new Intl.DateTimeFormat('en-MY', {
@@ -15,32 +27,34 @@ function displayDate(value: string): string {
   }).format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
 }
 
-function metricRows(summary: ReportResult['summary']) {
+function summaryRows(summary: ReportResult['summary']) {
   return [
-    ['Income received', summary.incomeSen],
-    ['Pending income (excluded)', summary.pendingIncomeSen],
-    ['Commitments', summary.commitmentsSen],
-    ['Savings', summary.savingsSen],
-    ['Investments', summary.investmentsSen],
-    ['Personal spending', summary.personalSpendingSen],
-    ['Remaining spendable', summary.remainingSpendableSen],
-    ['Total amount paid', summary.totalPaidSen],
-    ['Paid for friends', summary.paidForFriendsSen],
-    ['Requested from friends', summary.requestedSen],
-    ['Collected from friends', summary.collectedSen],
-    ['Still outstanding', summary.outstandingSen],
+    ['Income received', formatMoney(summary.incomeSen)],
+    ['Pending income (excluded)', formatMoney(summary.pendingIncomeSen)],
+    ['Commitments', formatMoney(summary.commitmentsSen)],
+    ['Savings', formatMoney(summary.savingsSen)],
+    ['Investments', formatMoney(summary.investmentsSen)],
+    ['Personal spending', formatMoney(summary.personalSpendingSen)],
+    ['Remaining spendable', formatMoney(summary.remainingSpendableSen)],
+    ['Total amount paid', formatMoney(summary.totalPaidSen)],
+    ['Paid for friends', formatMoney(summary.paidForFriendsSen)],
+    ['Requested from friends', formatMoney(summary.requestedSen)],
+    ['Collected from friends', formatMoney(summary.collectedSen)],
+    ['Still outstanding', formatMoney(summary.outstandingSen)],
   ] as const;
 }
 
-function formatSignedAmount(amountSen: number): string {
-  if (amountSen < 0) return `−${formatRM(Math.abs(amountSen))}`;
-  return formatRM(amountSen);
+/** A rise carries an explicit sign, so direction reads at a glance. */
+function formatChange(amountSen: number): string {
+  return amountSen > 0 ? `+${formatMoney(amountSen)}` : formatMoney(amountSen);
 }
 
-function formatChange(amountSen: number): string {
-  if (amountSen > 0) return `+${formatRM(amountSen)}`;
-  return formatSignedAmount(amountSen);
-}
+const EXPORTS = [
+  ['/api/export/transactions', 'Transactions CSV'],
+  ['/api/export/friends', 'Friend balances CSV'],
+  ['/api/export/requests', 'Payment requests CSV'],
+  ['/api/export/backup', 'Full JSON backup'],
+] as const;
 
 export function ReportView({
   report,
@@ -52,158 +66,161 @@ export function ReportView({
   today: string;
 }) {
   return (
-    <main>
-      <h1>{report.period.label} report</h1>
-      <p>
-        Reporting uses transaction dates. Recorded dates remain visible for audit context.
-        Friend repayments are collections, never income.
-      </p>
-
-      <section aria-labelledby="range-heading">
-        <h2 id="range-heading">Report range</h2>
-        <form method="get">
-          <label>
-            Range
+    <PageShell
+      intro={'Reporting uses transaction dates; recorded dates stay visible for audit '
+        + 'context. Friend repayments are collections, never income.'}
+      title={`${report.period.label} report`}
+    >
+      <Section id="range" title="Report range">
+        <FilterForm>
+          <Field label="Range">
             <select name="range" defaultValue={selection.kind}>
               <option value="month">Specific month</option>
               <option value="custom">Custom date range</option>
               <option value="ytd">Year to date</option>
               <option value="year">Specific year</option>
             </select>
-          </label>
-          <label>
-            Month
+          </Field>
+          <Field label="Month">
             <input
               name="month"
               type="month"
               defaultValue={selection.kind === 'month' ? selection.month : today.slice(0, 7)}
             />
-          </label>
-          <label>
-            From
+          </Field>
+          <Field label="From">
             <input
               name="from"
               type="date"
               defaultValue={selection.kind === 'custom' ? selection.from : today}
             />
-          </label>
-          <label>
-            To
+          </Field>
+          <Field label="To">
             <input
               name="to"
               type="date"
               defaultValue={selection.kind === 'custom' ? selection.to : today}
             />
-          </label>
-          <label>
-            Year
+          </Field>
+          <Field label="Year">
             <input
               name="year"
               type="number"
+              inputMode="numeric"
               min="2000"
               max="9999"
               defaultValue={'year' in selection ? selection.year : today.slice(0, 4)}
             />
-          </label>
-          <button type="submit">View report</button>
-        </form>
-      </section>
+          </Field>
+          <button
+            className="justify-self-start rounded-lg border border-hairline bg-transparent px-4 py-2.5 text-ink hover:border-hairline-strong"
+            type="submit"
+          >
+            View report
+          </button>
+        </FilterForm>
+      </Section>
 
-      <section aria-labelledby="summary-heading">
-        <h2 id="summary-heading">Financial summary</h2>
-        <dl>
-          {metricRows(report.summary).map(([label, amount]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{formatSignedAmount(amount)}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
+      <Section id="summary" title="Financial summary">
+        <Figures rows={summaryRows(report.summary)} />
+      </Section>
 
       {report.comparison ? (
-        <section aria-labelledby="comparison-heading">
-          <h2 id="comparison-heading">Compared with {report.comparison.period.label}</h2>
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Metric</th>
-                <th scope="col">Current</th>
-                <th scope="col">Previous</th>
-                <th scope="col">Change</th>
-              </tr>
-            </thead>
-            <tbody>
-              {([
-                ['Income', report.comparison.incomeSen],
-                ['Commitments', report.comparison.commitmentsSen],
-                ['Savings', report.comparison.savingsSen],
-                ['Investments', report.comparison.investmentsSen],
-                ['Personal spending', report.comparison.personalSpendingSen],
-                ['Outstanding', report.comparison.outstandingSen],
-              ] as const).map(([label, metric]) => (
-                <tr key={label}>
-                  <th scope="row">{label}</th>
-                  <td>{formatRM(metric.currentSen)}</td>
-                  <td>{formatRM(metric.previousSen)}</td>
-                  <td>{formatChange(metric.changeSen)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <Section id="comparison" title={`Compared with ${report.comparison.period.label}`}>
+          <DataTable
+            caption={`This period compared with ${report.comparison.period.label}`}
+            head={['Metric', 'Current', 'Previous', 'Change']}
+          >
+            {([
+              ['Income', report.comparison.incomeSen],
+              ['Commitments', report.comparison.commitmentsSen],
+              ['Savings', report.comparison.savingsSen],
+              ['Investments', report.comparison.investmentsSen],
+              ['Personal spending', report.comparison.personalSpendingSen],
+              ['Outstanding', report.comparison.outstandingSen],
+            ] as const).map(([label, metric]) => (
+              <DataRow
+                cells={[
+                  formatMoney(metric.currentSen),
+                  formatMoney(metric.previousSen),
+                  formatChange(metric.changeSen),
+                ]}
+                header={label}
+                key={label}
+              />
+            ))}
+          </DataTable>
+        </Section>
       ) : null}
 
-      <section aria-labelledby="history-heading">
-        <h2 id="history-heading">Historical transactions</h2>
-        {report.transactions.length === 0 ? <p>No transactions in this period.</p> : (
-          <ul>
+      <Section id="history" title="Historical transactions">
+        {report.transactions.length === 0 ? (
+          <Empty>No transactions in this period.</Empty>
+        ) : (
+          <RecordList>
             {report.transactions.map((transaction) => (
-              <li key={transaction.id}>
-                <details>
-                  <summary>
-                    {transaction.transactionDate} — {transaction.description}:{' '}
-                    {formatRM(transaction.amountSen)}
-                  </summary>
-                  <p>
-                    {transaction.type === 'shared_expense' ? 'Shared expense' : 'Personal expense'}
-                    {transaction.sharedStatus ? ` — ${transaction.sharedStatus}` : ''}
-                    {transaction.categoryName ? ` — ${transaction.categoryName}` : ''}
-                  </p>
-                  {transaction.type === 'shared_expense' && transaction.sharedStatus === 'resolved'
-                    ? (
-                      <p>
-                        Your portion {formatRM(transaction.userPortionSen)}; friend portions{' '}
-                        {formatRM(transaction.friendPortionSen)}
+              <Record key={transaction.id}>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <strong className="text-ink">{transaction.description}</strong>
+                  <span className="font-semibold text-ink tabular-nums">
+                    {formatMoney(transaction.amountSen)}
+                  </span>
+                </div>
+                <p className="text-sm text-ink-muted">
+                  <time dateTime={transaction.transactionDate}>
+                    {transaction.transactionDate}
+                  </time>
+                  {' · '}
+                  {transaction.type === 'shared_expense'
+                    ? 'Shared expense'
+                    : 'Personal expense'}
+                  {transaction.sharedStatus ? ` — ${transaction.sharedStatus}` : ''}
+                  {transaction.categoryName ? ` — ${transaction.categoryName}` : ''}
+                </p>
+
+                <Disclosure summary="Details">
+                  {transaction.type === 'shared_expense'
+                    && transaction.sharedStatus === 'resolved' ? (
+                      <p className="text-sm text-ink-muted">
+                        Your portion {formatMoney(transaction.userPortionSen)}; friend
+                        portions {formatMoney(transaction.friendPortionSen)}
                       </p>
-                    )
-                    : null}
+                    ) : null}
+
                   {transaction.items.length > 0 ? (
                     <>
-                      <h3>Bill items</h3>
-                      <ul>
+                      <h3 className="text-sm font-semibold text-ink">Bill items</h3>
+                      <ul className="grid list-none gap-1 p-0">
                         {transaction.items.map((item) => (
-                          <li key={item.id}>
-                            {item.description}: {formatRM(item.amountSen)}
+                          <li className="text-sm text-ink-muted" key={item.id}>
+                            {item.description}: {formatMoney(item.amountSen)}
                             {item.discountSen > 0
-                              ? ` (${formatRM(item.discountSen)} discount)`
+                              ? ` (${formatMoney(item.discountSen)} discount)`
                               : ''}
                           </li>
                         ))}
                       </ul>
                     </>
                   ) : null}
+
                   {transaction.friendPortions.length > 0 ? (
                     <>
-                      <h3>Friend portions</h3>
-                      <ul>
+                      <h3 className="text-sm font-semibold text-ink">Friend portions</h3>
+                      <ul className="grid list-none gap-1 p-0">
                         {transaction.friendPortions.map((portion) => (
-                          <li key={`${portion.friendId}:${portion.requestId ?? 'unrequested'}`}>
-                            {portion.friendName}: {formatRM(portion.amountSen)} — {portion.status}
+                          <li
+                            className="text-sm text-ink-muted"
+                            key={`${portion.friendId}:${portion.requestId ?? 'unrequested'}`}
+                          >
+                            {portion.friendName}: {formatMoney(portion.amountSen)} —{' '}
+                            {portion.status}
                             {portion.requestId ? (
                               <>
                                 {' '}
-                                <Link href={`/friends/${portion.friendId}/requests/${portion.requestId}`}>
+                                <Link
+                                  className={LINK_CLASS}
+                                  href={`/friends/${portion.friendId}/requests/${portion.requestId}`}
+                                >
                                   View payment request
                                 </Link>
                               </>
@@ -213,29 +230,37 @@ export function ReportView({
                       </ul>
                     </>
                   ) : null}
-                  <p>
+
+                  <p className="text-sm text-ink-muted">
                     Recorded{' '}
                     <time dateTime={transaction.recordedAt}>
                       {displayDate(transaction.recordedAt)}
                     </time>
                   </p>
-                </details>
-              </li>
+                </Disclosure>
+              </Record>
             ))}
-          </ul>
+          </RecordList>
         )}
-      </section>
+      </Section>
 
-      <section aria-labelledby="export-heading">
-        <h2 id="export-heading">Private exports</h2>
-        <p>Exports are generated on demand for the signed-in owner and are never cached.</p>
-        <ul>
-          <li><a href="/api/export/transactions">Transactions CSV</a></li>
-          <li><a href="/api/export/friends">Friend balances CSV</a></li>
-          <li><a href="/api/export/requests">Payment requests CSV</a></li>
-          <li><a href="/api/export/backup">Full JSON backup</a></li>
+      <Section id="export" title="Private exports">
+        <p className="text-sm text-ink-muted">
+          Exports are generated on demand for the signed-in owner and are never cached.
+        </p>
+        <ul className="grid list-none gap-2 p-0 sm:grid-cols-2">
+          {EXPORTS.map(([href, label]) => (
+            <li key={href}>
+              <a
+                className="inline-block rounded-lg border border-hairline px-3.5 py-2 text-sm text-ink no-underline hover:border-hairline-strong"
+                href={href}
+              >
+                {label}
+              </a>
+            </li>
+          ))}
         </ul>
-      </section>
-    </main>
+      </Section>
+    </PageShell>
   );
 }
