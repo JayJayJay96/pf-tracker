@@ -270,16 +270,29 @@ export function SummaryView({
         </Link>
       </section>
 
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile label="Confirmed income" tone="positive" value={formatMoney(income)} />
-        <Tile label="Commitments" value={formatMoney(summary.activeCommitments)} />
-        <Tile label="Personal spending" value={formatMoney(summary.resolvedPersonalSpending)} />
-        <Tile
-          label="Friends owe you"
-          tone={(summary.friendReceivables ?? 0) > 0 ? 'positive' : 'neutral'}
-          value={formatMoney(summary.friendReceivables ?? 0)}
-        />
-      </dl>
+      {/*
+        Headed, so the figures are not an unlabelled wall, and so they can be
+        referred to unambiguously - "Commitments" also appears in the breakdown
+        legend above.
+      */}
+      <section aria-labelledby="totals-heading" className="grid gap-3">
+        <h2 className="text-sm font-semibold text-ink-muted" id="totals-heading">
+          Month totals
+        </h2>
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Tile label="Confirmed income" tone="positive" value={formatMoney(income)} />
+          <Tile label="Commitments" value={formatMoney(summary.activeCommitments)} />
+          <Tile
+            label="Personal spending"
+            value={formatMoney(summary.resolvedPersonalSpending)}
+          />
+          <Tile
+            label="Friends owe you"
+            tone={(summary.friendReceivables ?? 0) > 0 ? 'positive' : 'neutral'}
+            value={formatMoney(summary.friendReceivables ?? 0)}
+          />
+        </dl>
+      </section>
 
       <section aria-labelledby="detail-heading" className="grid gap-3">
         <h2 className="text-sm font-semibold text-ink-muted" id="detail-heading">

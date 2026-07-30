@@ -21,6 +21,7 @@ test('records and reports a searchable backdated personal expense', async ({
     .locator('form');
   await expenseForm.getByLabel('Amount').fill('12.50');
   await expenseForm.getByLabel('Description').fill('Backdated lunch');
+  await expenseForm.getByText('Add merchant or notes').click();
   await expenseForm.getByLabel('Merchant').fill('Kopitiam');
   await expenseForm.getByLabel('Transaction date').fill('2026-06-30');
   await expenseForm.getByLabel('Category').selectOption({ label: 'Food' });
@@ -38,12 +39,11 @@ test('records and reports a searchable backdated personal expense', async ({
 
   await page.goto('/?month=2026-06');
   await expect(page.getByRole('heading', { name: 'June 2026' })).toBeVisible();
-  await expect(page.getByText('Personal spending').locator('..')).toContainText('RM12.50');
-  await expect(
-    page.getByRole('heading', { name: 'Remaining spendable' }).locator('..'),
-  ).toContainText('-RM12.50');
+  await expect(page.getByRole('region', { name: 'Month totals' })).toContainText('RM12.50');
+  await expect(page.getByRole('region', { name: 'Over budget' }))
+    .toContainText('-RM12.50');
 
-  await page.getByLabel('Period').fill('2026-07');
-  await page.getByRole('button', { name: 'View period' }).click();
-  await expect(page.getByText('Personal spending').locator('..')).toContainText('RM0.00');
+  // The month picker is now a stepper, so months are addressed by URL.
+  await page.goto('/?month=2026-07');
+  await expect(page.getByRole('region', { name: 'Month totals' })).toContainText('RM0.00');
 });

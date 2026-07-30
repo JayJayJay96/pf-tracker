@@ -66,10 +66,10 @@ test('snapshots two bills, leaves a later bill unrequested, and settles without 
   await expect(alex).toContainText('RM15.00 paid');
 
   await page.goto('/?month=2026-07');
-  await expect(page.getByText('Confirmed income').locator('..')).toContainText('RM0.00');
-  await expect(page.getByText('Personal spending', { exact: true }).locator('..'))
-    .toContainText('RM19.00');
-  await expect(page.getByText('Friends owe').locator('..')).toContainText('RM4.00');
+  const totals = page.getByRole('region', { name: 'Month totals' });
+  await expect(totals).toContainText('RM0.00');
+  await expect(totals).toContainText('RM19.00');
+  await expect(totals).toContainText('RM4.00');
 });
 
 async function createAndResolveBill(

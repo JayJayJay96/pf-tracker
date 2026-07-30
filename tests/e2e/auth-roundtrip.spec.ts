@@ -43,7 +43,8 @@ test('rejects a wrong password without revealing whether the account exists', as
   await page.getByLabel('Password').fill('definitely-not-the-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await expect(page.getByRole('alert')).toHaveText('Email or password is incorrect.');
+  await expect(page.locator('form').getByRole('alert'))
+    .toHaveText('Email or password is incorrect.');
   await expect(page).toHaveURL(/\/auth\/sign-in/);
 });
 

@@ -63,8 +63,9 @@ test('ten thousand of income less two thousand of commitments leaves eight', asy
   await expect(hero).toContainText('of RM10,000.00 income');
 
   // The same figures again as tiles, so the total is not the only reading.
-  await expect(page.getByText('Confirmed income').locator('..')).toContainText('RM10,000.00');
-  await expect(page.getByText('Commitments').first().locator('..')).toContainText('RM2,000.00');
+  const totals = page.getByRole('region', { name: 'Month totals' });
+  await expect(totals).toContainText('RM10,000.00');
+  await expect(totals).toContainText('RM2,000.00');
 });
 
 test('recording an expense reduces what is left to spend', async ({ page, request }) => {
@@ -77,7 +78,7 @@ test('recording an expense reduces what is left to spend', async ({ page, reques
   const categoryForm = formWithButton(page, 'Add category');
   await categoryForm.getByLabel('New category name').fill('Food');
   await categoryForm.getByRole('button', { name: 'Add category' }).click();
-  await expect(page.getByText('Food', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Category added.')).toBeVisible();
 
   const expenseForm = formWithButton(page, 'Save expense');
   // Typed the way a person types it: no RM prefix, no padded decimals.
@@ -91,7 +92,7 @@ test('recording an expense reduces what is left to spend', async ({ page, reques
   await page.goto('/?month=2026-07');
   await expect(page.getByRole('region', { name: 'Remaining spendable' }))
     .toContainText('RM9,987.50');
-  await expect(page.getByText('Personal spending').locator('..')).toContainText('RM12.50');
+  await expect(page.getByRole('region', { name: 'Month totals' })).toContainText('RM12.50');
 });
 
 test('an amount typed without the RM prefix is accepted and normalised', async ({

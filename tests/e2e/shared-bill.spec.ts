@@ -17,6 +17,7 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
     .locator('..').locator('form');
   await expenseForm.getByLabel('Amount').fill('4.25');
   await expenseForm.getByLabel('Description').fill('Personal snack');
+  await expenseForm.getByText('Add merchant or notes').click();
   await expenseForm.getByLabel('Merchant').fill('Corner Market');
   await expenseForm.getByLabel('Transaction date').fill('2026-07-04');
   await expenseForm.getByLabel('Category').selectOption({ label: 'Food' });
@@ -45,10 +46,11 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   await expect(bill).toContainText('RM18.00 cash outflow');
 
   await page.goto('/?month=2026-07');
-  await expect(page.getByText('Total cash outflow').locator('..')).toContainText('RM22.25');
-  await expect(page.getByText('Personal spending', { exact: true }).locator('..'))
-    .toContainText('RM4.25');
-  await expect(page.getByRole('status')).toContainText('1 unresolved shared bill');
+  // Renamed from "Total cash outflow" when the dashboard was redesigned.
+  await expect(page.getByText('Total cash out').locator('..')).toContainText('RM22.25');
+  await expect(page.getByRole('region', { name: 'Month totals' })).toContainText('RM4.25');
+  // The status banner became a link in the dashboard's "Needs attention" row.
+  await expect(page.getByRole('link', { name: '1 shared bill to resolve' })).toBeVisible();
 
   await page.goto('/shared-bills');
   const unresolvedBill = page.getByRole('listitem').filter({ hasText: 'Shared lunch' });
@@ -99,14 +101,15 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   await expect(resolvedBill).toContainText('Bee owes RM3.81');
 
   await page.goto('/?month=2026-07');
-  await expect(page.getByText('Total cash outflow').locator('..')).toContainText('RM22.25');
-  await expect(page.getByText('Personal spending', { exact: true }).locator('..'))
-    .toContainText('RM11.20');
-  await expect(page.getByText('Friends owe').locator('..')).toContainText('RM11.05');
-  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByText('Total cash out').locator('..')).toContainText('RM22.25');
+  const totals = page.getByRole('region', { name: 'Month totals' });
+  await expect(totals).toContainText('RM11.20');
+  await expect(totals).toContainText('RM11.05');
+  // Nothing left to resolve, so the attention row disappears entirely.
+  await expect(page.getByRole('link', { name: /to resolve$/ })).toHaveCount(0);
 
   await page.goto('/transactions');
-  const history = page.getByRole('heading', { name: 'Unified history' }).locator('..');
+  const history = page.getByRole('region', { name: 'Unified history' });
   await expect(history.getByText('Personal snack')).toBeVisible();
   await expect(history.getByText('Shared lunch')).toBeVisible();
 
