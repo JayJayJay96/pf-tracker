@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { formatMoney } from '../../domain/money';
+import { displayDate, displayDateTime } from '../ui/dates';
 import {
   DataRow,
   DataTable,
@@ -17,15 +18,6 @@ import {
 import type { ReportPeriodInput, ReportResult } from './queries';
 
 const LINK_CLASS = 'text-accent underline';
-
-function displayDate(value: string): string {
-  return new Intl.DateTimeFormat('en-MY', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
-}
 
 function summaryRows(summary: ReportResult['summary']) {
   return [
@@ -47,6 +39,109 @@ function summaryRows(summary: ReportResult['summary']) {
 /** A rise carries an explicit sign, so direction reads at a glance. */
 function formatChange(amountSen: number): string {
   return amountSen > 0 ? `+${formatMoney(amountSen)}` : formatMoney(amountSen);
+}
+
+type CategorySlice = { name: string; amountSen: number };
+
+/**
+ * What the owner actually spent, grouped by category.
+ *
+ * A category is required on every expense, so the tagging cost was already being
+ * paid; nothing was reading it back. Two judgements are baked in:
+ *
+ * - A resolved shared bill contributes the owner's own portion, not the whole
+ *   bill. The rest was never their money to spend.
+ * - An unresolved shared bill contributes nothing, because its split is not
+ *   decided yet. Those are counted separately and reported, so a total that
+ *   looks low is explained rather than just wrong.
+ */
+function spendingByCategory(transactions: ReportResult['transactions']): {
+  slices: CategorySlice[];
+  totalSen: number;
+  unresolvedCount: number;
+} {
+  const totals = new Map<string, number>();
+  let unresolvedCount = 0;
+
+  for (const transaction of transactions) {
+    if (transaction.type === 'shared_expense' && transaction.sharedStatus !== 'resolved') {
+      unresolvedCount += 1;
+      continue;
+    }
+    const amountSen = transaction.type === 'shared_expense'
+      ? transaction.userPortionSen
+      : transaction.amountSen;
+    if (amountSen <= 0) continue;
+    // Shared bills carry no category, so they would otherwise vanish silently.
+    const name = transaction.categoryName ?? 'Uncategorised';
+    totals.set(name, (totals.get(name) ?? 0) + amountSen);
+  }
+
+  const slices = [...totals]
+    .map(([name, amountSen]) => ({ name, amountSen }))
+    .sort((left, right) => right.amountSen - left.amountSen);
+
+  return {
+    slices,
+    totalSen: slices.reduce((sum, slice) => sum + slice.amountSen, 0),
+    unresolvedCount,
+  };
+}
+
+function CategoryBreakdown({ transactions }: {
+  transactions: ReportResult['transactions'];
+}) {
+  const { slices, totalSen, unresolvedCount } = spendingByCategory(transactions);
+
+  return (
+    <Section id="categories" title="Spending by category">
+      {slices.length === 0 ? (
+        <Empty>No categorised spending in this period.</Empty>
+      ) : (
+        <>
+          <ul className="grid list-none gap-2.5 p-0">
+            {slices.map((slice) => {
+              const share = Math.round((slice.amountSen / totalSen) * 100);
+              return (
+                <li className="grid gap-1.5" key={slice.name}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="text-ink">{slice.name}</span>
+                    <span className="text-sm text-ink-muted tabular-nums">
+                      <span className="font-semibold text-ink">
+                        {formatMoney(slice.amountSen)}
+                      </span>
+                      {` · ${share}%`}
+                    </span>
+                  </div>
+                  {/*
+                    Decorative: the figure and its share are both stated above, so
+                    the bar is never the only way to read this.
+                  */}
+                  <div
+                    aria-hidden="true"
+                    className="h-1.5 w-full overflow-hidden rounded-full bg-black/40"
+                  >
+                    <div
+                      className="h-full rounded-full bg-accent"
+                      style={{ width: `${(slice.amountSen / totalSen) * 100}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-sm text-ink-muted">
+            {`Total ${formatMoney(totalSen)}`}
+            {unresolvedCount > 0
+              ? `. Excludes ${unresolvedCount} unresolved shared `
+                + `${unresolvedCount === 1 ? 'bill' : 'bills'}, whose split is not `
+                + 'settled yet.'
+              : '.'}
+          </p>
+        </>
+      )}
+    </Section>
+  );
 }
 
 const EXPORTS = [
@@ -125,6 +220,10 @@ export function ReportView({
         <Figures rows={summaryRows(report.summary)} />
       </Section>
 
+      <CategoryBreakdown transactions={report.transactions} />
+
+
+
       {report.comparison ? (
         <Section id="comparison" title={`Compared with ${report.comparison.period.label}`}>
           <DataTable
@@ -168,7 +267,7 @@ export function ReportView({
                 </div>
                 <p className="text-sm text-ink-muted">
                   <time dateTime={transaction.transactionDate}>
-                    {transaction.transactionDate}
+                    {displayDate(transaction.transactionDate)}
                   </time>
                   {' · '}
                   {transaction.type === 'shared_expense'
@@ -234,7 +333,7 @@ export function ReportView({
                   <p className="text-sm text-ink-muted">
                     Recorded{' '}
                     <time dateTime={transaction.recordedAt}>
-                      {displayDate(transaction.recordedAt)}
+                      {displayDateTime(transaction.recordedAt)}
                     </time>
                   </p>
                 </Disclosure>

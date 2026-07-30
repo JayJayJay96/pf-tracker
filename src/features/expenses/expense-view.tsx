@@ -3,6 +3,7 @@ import { ActionForm } from '../forms/action-form';
 import { ConfirmSubmit } from '../forms/confirm-submit';
 import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
+import { displayDate, displayDateTime } from '../ui/dates';
 import {
   Disclosure,
   Empty,
@@ -109,27 +110,31 @@ function ExpenseFields({
           <option value="cash">Cash</option>
         </select>
       </Field>
-      {/* Kept out of the way so Save stays reachable without scrolling. */}
+      {/*
+        Kept out of the way so Save stays reachable without scrolling. The inner
+        grid matches the columns of the row above, so opening this does not
+        suddenly present two controls stretched across the whole panel while
+        every field beside them is a quarter of that.
+      */}
       <div className="col-span-full">
         <Disclosure summary="Add merchant or notes">
-          <Field label="Merchant">
-            <input name="merchant" defaultValue={expense?.merchant ?? ''} />
-          </Field>
-          <Field label="Notes">
-            <textarea name="notes" defaultValue={expense?.notes ?? ''} />
-          </Field>
+          <div className="grid items-end gap-x-3 gap-y-6 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+            <Field label="Merchant">
+              <input name="merchant" defaultValue={expense?.merchant ?? ''} />
+            </Field>
+            <Field label="Notes">
+              <textarea name="notes" defaultValue={expense?.notes ?? ''} />
+            </Field>
+          </div>
         </Disclosure>
       </div>
     </>
   );
 }
 
-function recordedLabel(recordedAt: string): string {
-  return new Intl.DateTimeFormat('en-MY', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'Asia/Kuala_Lumpur',
-  }).format(new Date(recordedAt));
+/** What the filtered list adds up to, so a filter answers a question. */
+function filteredTotal(expenses: Expense[]): string {
+  return formatMoney(expenses.reduce((sum, expense) => sum + expense.amountSen, 0));
 }
 
 export function ExpenseView({
@@ -198,7 +203,24 @@ export function ExpenseView({
         )}
       </Section>
 
-      <Section id="history" title="Transaction history">
+      {/*
+        The total belongs beside the heading: the filters below can narrow to one
+        category and one month, and answering "how much on food in July" by adding
+        the rows up by hand defeats having filtered at all.
+      */}
+      <Section
+        action={expenses.length > 0 ? (
+          <p className="text-sm text-ink-muted">
+            {expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'}
+            {' · '}
+            <span className="font-semibold text-ink tabular-nums">
+              {filteredTotal(expenses)}
+            </span>
+          </p>
+        ) : undefined}
+        id="history"
+        title="Transaction history"
+      >
         <FilterForm>
           <Field label="Search description or merchant">
             <input name="search" defaultValue={filters.search} />
@@ -241,7 +263,7 @@ export function ExpenseView({
                 </div>
                 <p className="text-sm text-ink-muted">
                   <time dateTime={expense.transactionDate}>
-                    {expense.transactionDate}
+                    {displayDate(expense.transactionDate)}
                   </time>
                   {' · '}
                   {expense.categoryName}
@@ -255,7 +277,7 @@ export function ExpenseView({
                 <p className="text-sm text-ink-muted">
                   Recorded{' '}
                   <time dateTime={expense.recordedAt}>
-                    {recordedLabel(expense.recordedAt)}
+                    {displayDateTime(expense.recordedAt)}
                   </time>
                 </p>
 
@@ -266,13 +288,18 @@ export function ExpenseView({
                     successMessage="Changes saved."
                   >
                     <input type="hidden" name="expenseId" value={expense.id} />
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <ExpenseFields
-                        categories={categories}
-                        expense={expense}
-                        defaultTransactionDate={defaultTransactionDate}
-                      />
-                    </div>
+                    {/*
+                      No wrapper grid here. One used to sit between the form and
+                      these fields with a tighter row gap, which overrode the
+                      gutter a field's validation message is positioned into - so
+                      a bad amount in this form collided with the row beneath it.
+                      The form's own grid already lays these out.
+                    */}
+                    <ExpenseFields
+                      categories={categories}
+                      expense={expense}
+                      defaultTransactionDate={defaultTransactionDate}
+                    />
                     <button className={QUIET_SUBMIT_CLASS} type="submit">
                       Save expense changes
                     </button>

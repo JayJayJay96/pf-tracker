@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { formatMoney } from '../../domain/money';
+import { displayDate } from '../ui/dates';
 import {
   Disclosure,
   Empty,
@@ -145,7 +146,7 @@ export function TransactionHistoryView({
                 </div>
                 <p className="text-sm text-ink-muted">
                   <time dateTime={transaction.transactionDate}>
-                    {transaction.transactionDate}
+                    {displayDate(transaction.transactionDate)}
                   </time>
                   {' · '}
                   {typeLabel(transaction)}

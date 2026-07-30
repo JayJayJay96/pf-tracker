@@ -101,7 +101,9 @@ test('records actuals against generated entries and preserves past months', asyn
   await rent.getByLabel('Paid date').fill('2026-07-02');
   await rent.getByRole('button', { name: 'Save entry actual' }).click();
   await expect(entryRow(page, 'Rent')).toContainText('Actual RM1,150.00');
-  await expect(entryRow(page, 'Rent')).toContainText('paid 2026-07-02');
+  // Dates read the way a person writes them now; the stored form stays in the
+  // element's datetime attribute.
+  await expect(entryRow(page, 'Rent')).toContainText('paid 2 Jul 2026');
 
   // 5250 actual income less 1150 rent, 500 savings and 300 investment.
   await page.goto('/?month=2026-07');

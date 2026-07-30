@@ -4,6 +4,7 @@ import { ActionForm } from '../forms/action-form';
 import { ConfirmSubmit } from '../forms/confirm-submit';
 import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
+import { displayDate } from '../ui/dates';
 import {
   Disclosure,
   Empty,
@@ -349,7 +350,15 @@ export function MonthlyPlanView({
         </ActionForm>
       </Section>
 
-      <Section id="month" title="Generate selected month">
+      {/*
+        This was titled for generating and offered Generate as a peer of View
+        month, which read as a step the owner had to remember. Opening a month
+        generates its entries by itself, so the only everyday job here is choosing
+        which month to look at. Generate stays, because it is still the repair for
+        an item added after a month was already generated, but it sits behind a
+        disclosure that says so rather than implying it is required.
+      */}
+      <Section id="month" title="Choose month">
         <FilterForm>
           <Field label="Month">
             <input
@@ -361,10 +370,20 @@ export function MonthlyPlanView({
           </Field>
           <button className={QUIET_SUBMIT_CLASS} type="submit">View month</button>
         </FilterForm>
-        <ActionForm action={actions?.generate} resetOnSuccess={false}>
-          <input type="hidden" name="periodStart" value={periodStart} />
-          <button className={QUIET_SUBMIT_CLASS} type="submit">Generate {label}</button>
-        </ActionForm>
+        <Disclosure summary="Regenerate this month">
+          <p className="text-sm text-ink-muted">
+            {`Entries appear on their own the first time a month is opened, so this `
+              + `is not normally needed. Use it if an income or commitment was added `
+              + `after ${label} had already been generated and its entry is missing `
+              + `below.`}
+          </p>
+          <ActionForm action={actions?.generate} resetOnSuccess={false}>
+            <input type="hidden" name="periodStart" value={periodStart} />
+            <button className={QUIET_SUBMIT_CLASS} type="submit">
+              Generate {label}
+            </button>
+          </ActionForm>
+        </Disclosure>
       </Section>
 
       <Section id="snapshots" title={`Generated monthly entries for ${label}`}>
@@ -385,11 +404,14 @@ export function MonthlyPlanView({
                     ? 'Actual not recorded'
                     : `Actual ${formatMoney(entry.actualAmountSen)}`}
                   {' · '}
-                  <time dateTime={entry.entryDate}>{entry.entryDate}</time>
+                  <time dateTime={entry.entryDate}>{displayDate(entry.entryDate)}</time>
                   {' · '}
                   {entry.status}
                   {entry.paidDate ? (
-                    <> paid <time dateTime={entry.paidDate}>{entry.paidDate}</time></>
+                    <>
+                      {' paid '}
+                      <time dateTime={entry.paidDate}>{displayDate(entry.paidDate)}</time>
+                    </>
                   ) : null}
                 </p>
                 {entry.notes ? (

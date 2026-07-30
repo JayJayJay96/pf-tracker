@@ -2,6 +2,7 @@ import { formatMoney } from '../../domain/money';
 import { ActionForm } from '../forms/action-form';
 import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
+import { displayDate } from '../ui/dates';
 import {
   Empty,
   Field,
@@ -114,7 +115,9 @@ export function SharedBillView({
                   </span>
                 </div>
                 <p className="text-sm text-ink-muted">
-                  <time dateTime={bill.transactionDate}>{bill.transactionDate}</time>
+                  <time dateTime={bill.transactionDate}>
+                    {displayDate(bill.transactionDate)}
+                  </time>
                   {bill.status === 'unresolved'
                     ? ' · Unresolved — personal spending is not final yet.'
                     : ` · Resolved — your portion ${formatMoney(bill.userPortionSen)}`}

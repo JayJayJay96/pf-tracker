@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { formatMoney, formatRM } from '../../domain/money';
 import { ActionForm } from '../forms/action-form';
 import type { FormResult } from '../forms/result';
+import { displayDate } from '../ui/dates';
 import {
   Empty,
   Field,
@@ -126,7 +127,7 @@ export function FriendLedgerView({
                   key={portion.portionId}
                 >
                   <input type="checkbox" name="portionIds" value={portion.portionId} />
-                  {portion.transactionDate} — {portion.description}:{' '}
+                  {displayDate(portion.transactionDate)} — {portion.description}:{' '}
                   {formatMoney(portion.amountSen)}
                 </label>
               ))}
@@ -160,11 +161,11 @@ export function FriendLedgerView({
                 </div>
                 <p className="text-sm text-ink-muted">
                   <time dateTime={portion.transactionDate}>
-                    {portion.transactionDate}
+                    {displayDate(portion.transactionDate)}
                   </time>
                   {' · '}
                   {portion.status}
-                  {portion.settledOn ? ` on ${portion.settledOn}` : ''}
+                  {portion.settledOn ? ` on ${displayDate(portion.settledOn)}` : ''}
                   {portion.requestId ? (
                     <>
                       {' · '}
@@ -192,7 +193,7 @@ export function FriendLedgerView({
                   className={LINK_CLASS}
                   href={`/friends/${friend.id}/requests/${request.id}`}
                 >
-                  {request.requestDate} — {formatMoney(request.totalSen)}
+                  {displayDate(request.requestDate)} — {formatMoney(request.totalSen)}
                 </Link>
                 <p className="text-sm text-ink-muted">{request.status}</p>
               </Record>
@@ -272,7 +273,7 @@ export function PaymentRequestView({
       }
       title="Payment request"
     >
-      <Section id="request" title={`${request.requestDate} — ${request.status}`}>
+      <Section id="request" title={`${displayDate(request.requestDate)} — ${request.status}`}>
         <textarea
           aria-label="Copyable payment summary"
           className="w-full rounded-lg border border-hairline bg-black/35 px-3.5 py-2.5 font-mono text-sm text-ink"
