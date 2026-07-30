@@ -72,7 +72,9 @@ export function Section({
  */
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="grid gap-1.5">
+    // min-w-0 because a grid item will not shrink below its own content by
+    // default, which let a native date picker push this field past its panel.
+    <label className="grid min-w-0 gap-1.5">
       <span className="text-sm text-ink-muted">{label}</span>
       {children}
     </label>
