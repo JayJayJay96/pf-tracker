@@ -153,9 +153,13 @@ export function ActionForm({
         that only applied inside one route group, so the same form was laid out or
         not depending on where it was rendered. auto-fit stops a one-field form
         from stretching a lone control across the whole width.
+
+        The row gap is wider than the column gap on purpose: a field's validation
+        message is positioned into that gap rather than taking part in the layout,
+        so the gap has to be tall enough to hold one line of it.
       */}
       <form
-        className="grid items-end gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]"
+        className="grid items-end gap-x-3 gap-y-6 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]"
         ref={formRef}
         action={submit}
         onInput={persistsDraft ? persist : undefined}

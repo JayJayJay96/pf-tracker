@@ -13,8 +13,27 @@ import {
 import { ActionForm } from '../forms/action-form';
 import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
+import { Field } from '../ui/page';
 import type { ConfiguredResolutionInput } from './actions';
 import type { Friend } from './queries';
+
+/**
+ * This editor renders inside a bill in a list, so it cannot use PageShell or
+ * Section. These carry the same treatment one level further down instead.
+ */
+const GROUP = 'col-span-full grid gap-3.5 rounded-xl border border-hairline '
+  + 'bg-black/20 px-4 py-3.5';
+const SUBGROUP = 'grid gap-x-3 gap-y-6 rounded-lg border border-hairline/60 px-3.5 py-3 '
+  + '[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]';
+const LEGEND = 'px-1 text-sm font-semibold text-ink-muted';
+const CHECK_ROW = 'flex min-h-9 items-center gap-2 text-sm text-ink';
+const ADD_BUTTON = 'justify-self-start bg-transparent px-3.5 py-2 text-sm';
+const SUBMIT = 'justify-self-start rounded-lg border border-hairline-strong '
+  + 'bg-accent-soft px-4 py-2.5 font-semibold text-ink hover:border-accent '
+  + 'hover:bg-accent/20';
+
+/** The distribution methods that actually read a list of people. */
+const NEEDS_PEOPLE = new Set<AdjustmentDistribution['method']>(['equal', 'selected']);
 
 type FormAction = (
   previous: FormResult,
@@ -170,33 +189,34 @@ export function ResolutionEditor({
 
   return (
     <ActionForm action={action} resetOnSuccess={false}>
-      <fieldset className="col-span-full grid gap-2 border border-hairline rounded-xl px-4 py-3">
-        <legend>People</legend>
-        <p>You are always included.</p>
-        {friends.map((friend) => (
-          <label key={friend.id}>
-            <input
-              type="checkbox"
-              checked={friendIds.includes(friend.id)}
-              onChange={(event) => {
-                setConfirmed(false);
-                setFriendIds((current) => event.target.checked
-                  ? [...current, friend.id]
-                  : current.filter((id) => id !== friend.id));
-              }}
-            />
-            Include {friend.name}
-          </label>
-        ))}
+      <fieldset className={GROUP}>
+        <legend className={LEGEND}>People</legend>
+        <p className="text-sm text-ink-muted">You are always included.</p>
+        <div className="grid gap-1">
+          {friends.map((friend) => (
+            <label className={CHECK_ROW} key={friend.id}>
+              <input
+                type="checkbox"
+                checked={friendIds.includes(friend.id)}
+                onChange={(event) => {
+                  setConfirmed(false);
+                  setFriendIds((current) => event.target.checked
+                    ? [...current, friend.id]
+                    : current.filter((id) => id !== friend.id));
+                }}
+              />
+              Include {friend.name}
+            </label>
+          ))}
+        </div>
       </fieldset>
 
-      <fieldset className="col-span-full grid gap-2 border border-hairline rounded-xl px-4 py-3">
-        <legend>Items</legend>
+      <fieldset className={GROUP}>
+        <legend className={LEGEND}>Items</legend>
         {items.map((item, index) => (
-          <fieldset key={item.key}>
-            <legend>Item {index + 1}</legend>
-            <label>
-              Item {index + 1} description
+          <fieldset className={SUBGROUP} key={item.key}>
+            <legend className={LEGEND}>Item {index + 1}</legend>
+            <Field label={`Item ${index + 1} description`}>
               <input
                 value={item.description}
                 onChange={(event) => updateItem(item.key, {
@@ -204,7 +224,7 @@ export function ResolutionEditor({
                 })}
                 required
               />
-            </label>
+            </Field>
             <MoneyInput
               name={`item-${item.key}-amount`}
               label={`Item ${index + 1} amount`}
@@ -219,23 +239,26 @@ export function ResolutionEditor({
               onValueChange={(discount) => updateItem(item.key, { discount })}
               required
             />
-            {people.map((person) => (
-              <label key={person.id}>
-                <input
-                  type="checkbox"
-                  checked={item.participantIds.includes(person.id)}
-                  onChange={(event) => updateItem(item.key, {
-                    participantIds: event.target.checked
-                      ? [...item.participantIds, person.id]
-                      : item.participantIds.filter((id) => id !== person.id),
-                  })}
-                />
-                Item {index + 1} assign {person.name}
-              </label>
-            ))}
+            <div className="col-span-full grid gap-1">
+              {people.map((person) => (
+                <label className={CHECK_ROW} key={person.id}>
+                  <input
+                    type="checkbox"
+                    checked={item.participantIds.includes(person.id)}
+                    onChange={(event) => updateItem(item.key, {
+                      participantIds: event.target.checked
+                        ? [...item.participantIds, person.id]
+                        : item.participantIds.filter((id) => id !== person.id),
+                    })}
+                  />
+                  Item {index + 1} assign {person.name}
+                </label>
+              ))}
+            </div>
           </fieldset>
         ))}
         <button
+          className={ADD_BUTTON}
           type="button"
           onClick={() => {
             setConfirmed(false);
@@ -252,13 +275,12 @@ export function ResolutionEditor({
         </button>
       </fieldset>
 
-      <fieldset className="col-span-full grid gap-2 border border-hairline rounded-xl px-4 py-3">
-        <legend>Adjustments</legend>
+      <fieldset className={GROUP}>
+        <legend className={LEGEND}>Adjustments</legend>
         {adjustments.map((adjustment, index) => (
-          <fieldset key={adjustment.key}>
-            <legend>Adjustment {index + 1}</legend>
-            <label>
-              Adjustment {index + 1} type
+          <fieldset className={SUBGROUP} key={adjustment.key}>
+            <legend className={LEGEND}>Adjustment {index + 1}</legend>
+            <Field label={`Adjustment ${index + 1} type`}>
               <select
                 value={adjustment.kind}
                 onChange={(event) => updateAdjustment(adjustment.key, {
@@ -270,7 +292,7 @@ export function ResolutionEditor({
                 <option value="tax">Tax</option>
                 <option value="rounding">Signed rounding</option>
               </select>
-            </label>
+            </Field>
             <MoneyInput
               name={`adjustment-${adjustment.key}-amount`}
               label={`Adjustment ${index + 1} amount`}
@@ -279,8 +301,7 @@ export function ResolutionEditor({
               allowNegative={adjustment.kind === 'rounding'}
               required
             />
-            <label>
-              Adjustment {index + 1} distribution
+            <Field label={`Adjustment ${index + 1} distribution`}>
               <select
                 value={adjustment.method}
                 onChange={(event) => updateAdjustment(adjustment.key, {
@@ -293,22 +314,37 @@ export function ResolutionEditor({
                 <option value="user">User only</option>
                 <option value="manual">Manual</option>
               </select>
-            </label>
-            {people.map((person) => (
-              <div key={person.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={adjustment.participantIds.includes(person.id)}
-                    onChange={(event) => updateAdjustment(adjustment.key, {
-                      participantIds: event.target.checked
-                        ? [...adjustment.participantIds, person.id]
-                        : adjustment.participantIds.filter((id) => id !== person.id),
-                    })}
-                  />
-                  Adjustment {index + 1} include {person.name}
-                </label>
+            </Field>
+            {/*
+              Only the controls the chosen method reads. Every adjustment used to
+              render an include checkbox and a manual amount for every person
+              whatever the method was, so five adjustments and three people meant
+              thirty controls, of which at most a handful did anything. The state
+              behind them is kept either way, so switching method and back does
+              not lose what was already entered.
+            */}
+            {NEEDS_PEOPLE.has(adjustment.method) ? (
+              <div className="col-span-full grid gap-1">
+                {people.map((person) => (
+                  <label className={CHECK_ROW} key={person.id}>
+                    <input
+                      type="checkbox"
+                      checked={adjustment.participantIds.includes(person.id)}
+                      onChange={(event) => updateAdjustment(adjustment.key, {
+                        participantIds: event.target.checked
+                          ? [...adjustment.participantIds, person.id]
+                          : adjustment.participantIds.filter((id) => id !== person.id),
+                      })}
+                    />
+                    Adjustment {index + 1} include {person.name}
+                  </label>
+                ))}
+              </div>
+            ) : null}
+            {adjustment.method === 'manual'
+              ? people.map((person) => (
                 <MoneyInput
+                  key={person.id}
                   name={`adjustment-${adjustment.key}-manual-${person.id}`}
                   label={`Adjustment ${index + 1} ${person.name} manual amount`}
                   value={adjustment.manualAmounts[person.id] ?? '0.00'}
@@ -316,11 +352,12 @@ export function ResolutionEditor({
                     manualAmounts: { ...adjustment.manualAmounts, [person.id]: amount },
                   })}
                 />
-              </div>
-            ))}
+              ))
+              : null}
           </fieldset>
         ))}
         <button
+          className={ADD_BUTTON}
           type="button"
           onClick={() => {
             setConfirmed(false);
@@ -338,19 +375,27 @@ export function ResolutionEditor({
         </button>
       </fieldset>
 
-      <section aria-labelledby={`review-${billId}`}>
-        <h4 id={`review-${billId}`}>Allocation review</h4>
-        {review.error ? <p role="alert">{review.error}</p> : (
-          <ul>
+      {/*
+        h3, not h4. This sits under the "Shared bill history" h2, so an h4 skipped
+        a level, once per unresolved bill on the page.
+      */}
+      <section aria-labelledby={`review-${billId}`} className={GROUP}>
+        <h3 className="text-sm font-semibold text-ink-muted" id={`review-${billId}`}>
+          Allocation review
+        </h3>
+        {review.error ? (
+          <p className="text-sm font-bold text-negative" role="alert">{review.error}</p>
+        ) : (
+          <ul className="grid list-none gap-1 p-0">
             {review.allocation?.portions.map((portion) => (
-              <li key={portion.participantId}>
+              <li className="text-sm text-ink tabular-nums" key={portion.participantId}>
                 {people.find(({ id }) => id === portion.participantId)?.name}:{' '}
                 {formatRM(portion.amountSen)}
               </li>
             ))}
           </ul>
         )}
-        <label>
+        <label className={CHECK_ROW}>
           <input
             type="checkbox"
             checked={confirmed}
@@ -365,7 +410,11 @@ export function ResolutionEditor({
         name="configuration"
         value={JSON.stringify(configuration)}
       />
-      <button type="submit" disabled={Boolean(review.error) || !confirmed}>
+      <button
+        className={SUBMIT}
+        type="submit"
+        disabled={Boolean(review.error) || !confirmed}
+      >
         Resolve shared bill
       </button>
     </ActionForm>

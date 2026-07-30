@@ -112,6 +112,9 @@ export function MoneyInput({
           enterKeyHint="next"
           required={required}
           autoFocus={autoFocus}
+          // Carries the format now that the hint is not drawn. Never "RM0.00":
+          // the prefix sits beside the field, so an RM inside the value is wrong.
+          placeholder={allowNegative ? '12.50, or -0.05' : '12.50'}
           aria-invalid={message ? true : undefined}
           aria-describedby={message ? errorId : hintId}
           onBlur={handleBlur}
@@ -121,10 +124,18 @@ export function MoneyInput({
             : { defaultValue: defaultSen == null ? '' : formatAmountInput(defaultSen) })}
         />
       </span>
+      {/*
+        The hint is announced but not drawn. Every money field carried a standing
+        "For example 12.50" under it, which made the field taller than the plain
+        fields beside it in the same bottom-aligned row and so lifted its input
+        out of line with them - and repeated the same sentence three times over in
+        the bill editor. The placeholder shows the format instead, and this keeps
+        `aria-describedby` pointing at real text.
+      */}
       {message ? (
         <span className="field-error" id={errorId}>{message}</span>
       ) : (
-        <span className="field-hint" id={hintId}>
+        <span className="sr-only" id={hintId}>
           {allowNegative ? 'For example 1.50, or -0.05 to subtract' : 'For example 12.50'}
         </span>
       )}

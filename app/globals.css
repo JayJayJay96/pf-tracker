@@ -52,8 +52,20 @@
       linear-gradient(180deg, rgba(11, 34, 52, 0.86) 0%, rgba(6, 16, 24, 0.98) 34%),
       var(--color-canvas);
     color: var(--color-ink);
-    font-family: Arial, Helvetica, sans-serif;
   }
+
+  /*
+   * No font-family here on purpose. Preflight already points `html` at
+   * `--default-font-family`, which resolves to the native stack of whichever OS
+   * is rendering - 'Segoe UI' on Windows, -apple-system on macOS - with emoji
+   * fallbacks behind it. Naming Arial explicitly was overriding that with the
+   * one entry in the list nobody actually wants.
+   *
+   * A webfont would mean either a build-time download (next/font/google, so CI
+   * needs network access to compile) or a vendored binary in the repo. Neither
+   * earns its cost in an app whose job is reading numbers, and the native stack
+   * is already what the reader's OS renders every other piece of text with.
+   */
 
   /*
    * Controls carry their appearance here rather than at every call site. A screen
@@ -103,9 +115,17 @@
     resize: vertical;
   }
 
+  /*
+   * Sized up from the browser default of about 13px, which looked incidental
+   * next to 44px-tall text controls, and never allowed to stretch: these are the
+   * one input type the width rule above deliberately skips.
+   */
   input[type="checkbox"],
   input[type="radio"] {
     accent-color: var(--color-accent);
+    flex: 0 0 auto;
+    height: 1.1rem;
+    width: 1.1rem;
   }
 
   /* The stylesheet defined no focus style at all before this. */
@@ -120,10 +140,19 @@
 }
 
 @layer components {
-  /* Money entry: RM sits beside the field, never inside its value. */
+  /*
+   * Money entry: RM sits beside the field, never inside its value.
+   *
+   * `relative` exists so the error message can be taken out of flow. Forms lay
+   * their fields out in a bottom-aligned row, so anything that makes one field
+   * taller than its neighbours lifts that field's input out of line with them -
+   * which is what a message rendered in flow did, both for the standing hint and
+   * every time validation failed.
+   */
   .field {
     display: grid;
     gap: 0.35rem;
+    position: relative;
   }
 
   .field-label {
@@ -140,10 +169,20 @@
     color: var(--color-ink-muted);
   }
 
+  /*
+   * Sits in the row gap under its own field rather than in flow, so an appearing
+   * error never moves the control the reader is typing into, nor the fields
+   * beside it.
+   */
   .field-error {
     color: var(--color-negative);
     font-weight: 700;
+    left: 0;
+    margin-top: 0.15rem;
+    position: absolute;
+    top: 100%;
   }
+
 
   .money-field {
     display: flex;
