@@ -1,7 +1,15 @@
-import { formatRM } from '../../domain/money';
+import { formatMoney } from '../../domain/money';
+import { ActionForm } from '../forms/action-form';
 import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
-import { ActionForm } from '../forms/action-form';
+import {
+  Empty,
+  Field,
+  PageShell,
+  Record,
+  RecordList,
+  Section,
+} from '../ui/page';
 import type { Friend, SharedBill } from './queries';
 import { ResolutionEditor } from './resolution-editor';
 
@@ -9,6 +17,12 @@ type FormAction = (
   previous: FormResult,
   formData: FormData,
 ) => Promise<FormResult>;
+
+const SUBMIT_CLASS = 'justify-self-start rounded-lg border border-hairline-strong '
+  + 'bg-accent-soft px-4 py-2.5 font-semibold text-ink hover:border-accent '
+  + 'hover:bg-accent/20';
+const QUIET_SUBMIT_CLASS = 'justify-self-start rounded-lg border border-hairline '
+  + 'bg-transparent px-4 py-2.5 text-ink hover:border-hairline-strong';
 
 type SharedBillViewProps = {
   friends: Friend[];
@@ -22,31 +36,32 @@ type SharedBillViewProps = {
   };
 };
 
-function SharedBillFields({ defaultTransactionDate }: { defaultTransactionDate: string }) {
+function SharedBillFields({
+  defaultTransactionDate,
+}: {
+  defaultTransactionDate: string;
+}) {
   return (
     <>
       <MoneyInput name="amount" label="Amount" required />
-      <label>
-        Description
+      <Field label="Description">
         <input name="description" required />
-      </label>
-      <label>
-        Transaction date
+      </Field>
+      <Field label="Transaction date">
         <input
           name="transactionDate"
           type="date"
           defaultValue={defaultTransactionDate}
           required
         />
-      </label>
-      <label>
-        Payment method
+      </Field>
+      <Field label="Payment method">
         <select name="paymentMethod" defaultValue="tng" required>
           <option value="tng">Touch &apos;n Go</option>
           <option value="cash">Cash</option>
         </select>
-      </label>
-      <button type="submit">Save unresolved bill</button>
+      </Field>
+      <button className={SUBMIT_CLASS} type="submit">Save unresolved bill</button>
     </>
   );
 }
@@ -59,11 +74,8 @@ export function SharedBillView({
   actions,
 }: SharedBillViewProps) {
   return (
-    <main>
-      <h1>Shared Bills</h1>
-
-      <section aria-labelledby="record-bill-heading">
-        <h2 id="record-bill-heading">Record shared bill</h2>
+    <PageShell title="Shared Bills">
+      <Section id="record-bill" title="Record shared bill">
         <ActionForm
           action={actions?.createBill}
           userId={userId}
@@ -72,56 +84,63 @@ export function SharedBillView({
         >
           <SharedBillFields defaultTransactionDate={defaultTransactionDate} />
         </ActionForm>
-      </section>
+      </Section>
 
-      <section aria-labelledby="friends-heading">
-        <h2 id="friends-heading">Friends</h2>
-        <ActionForm action={actions?.createFriend}>
-          <label>
-            Friend name
+      <Section id="friends" title="Friends">
+        <ActionForm action={actions?.createFriend} successMessage="Friend added.">
+          <Field label="Friend name">
             <input name="name" required />
-          </label>
-          <button type="submit">Add friend</button>
+          </Field>
+          <button className={QUIET_SUBMIT_CLASS} type="submit">Add friend</button>
         </ActionForm>
-        {friends.length === 0
-          ? <p>Add a friend before resolving a bill.</p>
-          : <p>{friends.map(({ name }) => name).join(', ')}</p>}
-      </section>
-
-      <section aria-labelledby="shared-bills-heading">
-        <h2 id="shared-bills-heading">Shared bill history</h2>
-        {bills.length === 0 ? <p>No shared bills recorded.</p> : (
-          <ul>
-            {bills.map((bill) => (
-              <li key={bill.id} id={`transaction-${bill.id}`}>
-                <strong>{bill.description}</strong>{' '}
-                <span>{formatRM(bill.amountSen)} cash outflow</span>{' '}
-                <time dateTime={bill.transactionDate}>{bill.transactionDate}</time>
-                {bill.status === 'unresolved' ? (
-                  <>
-                    <p>Unresolved — personal spending is not final yet.</p>
-                    <ResolutionEditor
-                      billId={bill.id}
-                      totalSen={bill.amountSen}
-                      friends={friends}
-                      action={actions?.resolveBill}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <p>Resolved — Your portion {formatRM(bill.userPortionSen)}</p>
-                    {bill.friendPortions.map((portion) => (
-                      <p key={portion.friendName}>
-                        {portion.friendName} owes {formatRM(portion.amountSen)}
-                      </p>
-                    ))}
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
+        {friends.length === 0 ? (
+          <Empty>Add a friend before resolving a bill.</Empty>
+        ) : (
+          <p className="text-sm text-ink-muted">
+            {friends.map(({ name }) => name).join(', ')}
+          </p>
         )}
-      </section>
-    </main>
+      </Section>
+
+      <Section id="shared-bills" title="Shared bill history">
+        {bills.length === 0 ? <Empty>No shared bills recorded.</Empty> : (
+          <RecordList>
+            {bills.map((bill) => (
+              <Record id={`transaction-${bill.id}`} key={bill.id}>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <strong className="text-ink">{bill.description}</strong>
+                  <span className="font-semibold text-ink tabular-nums">
+                    {formatMoney(bill.amountSen)} cash outflow
+                  </span>
+                </div>
+                <p className="text-sm text-ink-muted">
+                  <time dateTime={bill.transactionDate}>{bill.transactionDate}</time>
+                  {bill.status === 'unresolved'
+                    ? ' · Unresolved — personal spending is not final yet.'
+                    : ` · Resolved — your portion ${formatMoney(bill.userPortionSen)}`}
+                </p>
+
+                {bill.status === 'unresolved' ? (
+                  <ResolutionEditor
+                    billId={bill.id}
+                    totalSen={bill.amountSen}
+                    friends={friends}
+                    action={actions?.resolveBill}
+                  />
+                ) : (
+                  <ul className="grid list-none gap-1 p-0">
+                    {bill.friendPortions.map((portion) => (
+                      <li className="text-sm text-ink-muted" key={portion.friendName}>
+                        {portion.friendName} owes {formatMoney(portion.amountSen)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Record>
+            ))}
+          </RecordList>
+        )}
+      </Section>
+    </PageShell>
   );
 }

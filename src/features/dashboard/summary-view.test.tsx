@@ -155,9 +155,9 @@ describe('dashboard summary view', () => {
     expect(page).toContain('RM60.00');
   });
 
-  it('stays excluded from the legacy stylesheet block', () => {
-    // The legacy rules key off main:not(.dashboard-shell); losing this class
-    // would apply every legacy form rule to the dashboard.
-    expect(render({})).toContain('dashboard-shell');
+  it('constrains its own width rather than relying on a global rule', () => {
+    // The legacy block it used to opt out of is gone; the shell is explicit now.
+    expect(render({})).toContain('max-w-[1180px]');
+    expect(render({})).not.toContain('dashboard-shell');
   });
 });

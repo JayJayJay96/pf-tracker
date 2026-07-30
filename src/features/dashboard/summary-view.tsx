@@ -138,7 +138,7 @@ export function SummaryView({
   ].filter((item): item is { href: string; text: string } => Boolean(item));
 
   return (
-    <main className="dashboard-shell grid gap-6">
+    <main className="mx-auto grid w-full max-w-[1180px] gap-6 px-5 pt-8 pb-16">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-ink">
           {monthLabel(periodStart)}

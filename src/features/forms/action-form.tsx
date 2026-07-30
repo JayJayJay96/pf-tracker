@@ -148,7 +148,14 @@ export function ActionForm({
         misleading RM `pattern` that made those messages useless is gone. The
         server remains the authority and reports through `fieldErrors`.
       */}
+      {/*
+        The form owns its own layout. It previously relied on a global `form` rule
+        that only applied inside one route group, so the same form was laid out or
+        not depending on where it was rendered. auto-fit stops a one-field form
+        from stretching a lone control across the whole width.
+      */}
       <form
+        className="grid items-end gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]"
         ref={formRef}
         action={submit}
         onInput={persistsDraft ? persist : undefined}

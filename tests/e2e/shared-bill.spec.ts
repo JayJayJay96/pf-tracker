@@ -9,12 +9,10 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
 }) => {
   await signIn(page, request, 'shared-bill');
   await page.goto('/expenses');
-  const categoryForm = page.getByRole('heading', { name: 'Expense categories' })
-    .locator('..').locator('form');
+  const categoryForm = page.getByRole('region', { name: 'Expense categories' }).locator('form');
   await categoryForm.getByLabel('New category name').fill('Food');
   await categoryForm.getByRole('button', { name: 'Add category' }).click();
-  const expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
-    .locator('..').locator('form');
+  const expenseForm = page.getByRole('region', { name: 'Add personal expense' }).locator('form');
   await expenseForm.getByLabel('Amount').fill('4.25');
   await expenseForm.getByLabel('Description').fill('Personal snack');
   await expenseForm.getByText('Add merchant or notes').click();
@@ -26,15 +24,13 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
 
   await page.goto('/shared-bills');
 
-  const friendForm = page.getByRole('heading', { name: 'Friends' })
-    .locator('..').locator('form');
+  const friendForm = page.getByRole('region', { name: 'Friends' }).locator('form');
   await friendForm.getByLabel('Friend name').fill('Alex');
   await friendForm.getByRole('button', { name: 'Add friend' }).click();
   await friendForm.getByLabel('Friend name').fill('Bee');
   await friendForm.getByRole('button', { name: 'Add friend' }).click();
 
-  const billForm = page.getByRole('heading', { name: 'Record shared bill' })
-    .locator('..').locator('form');
+  const billForm = page.getByRole('region', { name: 'Record shared bill' }).locator('form');
   await billForm.getByLabel('Amount').fill('18.00');
   await billForm.getByLabel('Description').fill('Shared lunch');
   await billForm.getByLabel('Transaction date').fill('2026-07-03');
@@ -86,8 +82,7 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   await unresolvedBill.getByLabel('Adjustment 5 amount').fill('-0.01');
   await unresolvedBill.getByLabel('Adjustment 5 distribution').selectOption('user');
 
-  const review = unresolvedBill.getByRole('heading', { name: 'Allocation review' })
-    .locator('..');
+  const review = unresolvedBill.getByRole('region', { name: 'Allocation review' });
   await expect(review).toContainText('You: RM6.95');
   await expect(review).toContainText('Alex: RM7.24');
   await expect(review).toContainText('Bee: RM3.81');
@@ -96,7 +91,7 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
 
   const resolvedBill = page.getByRole('listitem').filter({ hasText: 'Shared lunch' });
   await expect(resolvedBill).toContainText('Resolved');
-  await expect(resolvedBill).toContainText('Your portion RM6.95');
+  await expect(resolvedBill).toContainText('your portion RM6.95');
   await expect(resolvedBill).toContainText('Alex owes RM7.24');
   await expect(resolvedBill).toContainText('Bee owes RM3.81');
 

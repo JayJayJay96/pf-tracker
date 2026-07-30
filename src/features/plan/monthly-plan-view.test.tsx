@@ -49,7 +49,8 @@ describe('monthly plan view', () => {
       />,
     );
 
-    expect(page).toContain('<h1>Income &amp; Commitments</h1>');
+    // The heading carries utility classes now, so assert the text not the tag.
+    expect(page).toContain('Income &amp; Commitments');
     expect(page).toContain('Recurring income');
     expect(page).toContain('Recurring commitments');
     expect(page).toContain('Other monthly allocations');
@@ -60,10 +61,10 @@ describe('monthly plan view', () => {
       page.indexOf('Generated monthly entries'),
     );
     expect(page).toContain('These fixed items carry forward into future months.');
-    expect(page).toContain('RM5000.00');
+    expect(page).toContain('RM5,000.00');
     expect(page).toContain('PTPTN');
     expect(page).toContain('RM120.00');
-    expect(page).toContain('Actual RM5250.50');
+    expect(page).toContain('Actual RM5,250.50');
     expect(page).toContain('Update actual');
     expect(page).toContain('Final KPI amount');
     expect(page).toContain('Generated monthly entries for July 2026');

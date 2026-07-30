@@ -10,8 +10,7 @@ test('snapshots two bills, leaves a later bill unrequested, and settles without 
   await signIn(page, request, 'payment-request');
   await page.goto('/shared-bills');
 
-  const friendForm = page.getByRole('heading', { name: 'Friends' })
-    .locator('..').locator('form');
+  const friendForm = page.getByRole('region', { name: 'Friends' }).locator('form');
   await friendForm.getByLabel('Friend name').fill('Alex');
   await friendForm.getByRole('button', { name: 'Add friend' }).click();
 
@@ -79,8 +78,7 @@ async function createAndResolveBill(
   transactionDate: string,
 ) {
   if (!page.url().endsWith('/shared-bills')) await page.goto('/shared-bills');
-  const billForm = page.getByRole('heading', { name: 'Record shared bill' })
-    .locator('..').locator('form');
+  const billForm = page.getByRole('region', { name: 'Record shared bill' }).locator('form');
   await billForm.getByLabel('Amount').fill(amount);
   await billForm.getByLabel('Description').fill(description);
   await billForm.getByLabel('Transaction date').fill(transactionDate);

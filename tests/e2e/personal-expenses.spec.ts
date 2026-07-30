@@ -10,14 +10,12 @@ test('records and reports a searchable backdated personal expense', async ({
   await signIn(page, request, 'personal-expense');
   await page.goto('/expenses');
 
-  const categoryForm = page.getByRole('heading', { name: 'Expense categories' })
-    .locator('..')
+  const categoryForm = page.getByRole('region', { name: 'Expense categories' })
     .locator('form');
   await categoryForm.getByLabel('New category name').fill('Food');
   await categoryForm.getByRole('button', { name: 'Add category' }).click();
 
-  const expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
-    .locator('..')
+  const expenseForm = page.getByRole('region', { name: 'Add personal expense' })
     .locator('form');
   await expenseForm.getByLabel('Amount').fill('12.50');
   await expenseForm.getByLabel('Description').fill('Backdated lunch');
@@ -29,7 +27,7 @@ test('records and reports a searchable backdated personal expense', async ({
   await expenseForm.getByLabel('Notes').fill('Forgotten yesterday');
   await expenseForm.getByRole('button', { name: 'Save expense' }).click();
 
-  const history = page.getByRole('heading', { name: 'Transaction history' }).locator('..');
+  const history = page.getByRole('region', { name: 'Transaction history' });
   await expect(history.getByText('Backdated lunch', { exact: true }).first()).toBeVisible();
   await expect(history).toContainText('Recorded');
 

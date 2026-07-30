@@ -170,7 +170,7 @@ export function ResolutionEditor({
 
   return (
     <ActionForm action={action} resetOnSuccess={false}>
-      <fieldset>
+      <fieldset className="col-span-full grid gap-2 border border-hairline rounded-xl px-4 py-3">
         <legend>People</legend>
         <p>You are always included.</p>
         {friends.map((friend) => (
@@ -190,7 +190,7 @@ export function ResolutionEditor({
         ))}
       </fieldset>
 
-      <fieldset>
+      <fieldset className="col-span-full grid gap-2 border border-hairline rounded-xl px-4 py-3">
         <legend>Items</legend>
         {items.map((item, index) => (
           <fieldset key={item.key}>
@@ -252,7 +252,7 @@ export function ResolutionEditor({
         </button>
       </fieldset>
 
-      <fieldset>
+      <fieldset className="col-span-full grid gap-2 border border-hairline rounded-xl px-4 py-3">
         <legend>Adjustments</legend>
         {adjustments.map((adjustment, index) => (
           <fieldset key={adjustment.key}>

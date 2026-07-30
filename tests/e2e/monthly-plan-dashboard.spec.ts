@@ -39,8 +39,7 @@ async function addRecurring(page: Page, input: {
 
 function entryRow(page: Page, name: string) {
   return page
-    .getByRole('heading', { name: /^Generated monthly entries for/ })
-    .locator('..')
+    .getByRole('region', { name: /^Generated monthly entries for/ })
     .locator('li')
     .filter({ has: page.getByText(name, { exact: true }) });
 }
@@ -93,7 +92,7 @@ test('records actuals against generated entries and preserves past months', asyn
   await salary.getByText('Update actual').click();
   await salary.getByLabel('Actual amount').fill('5250');
   await salary.getByRole('button', { name: 'Save entry actual' }).click();
-  await expect(entryRow(page, 'Salary')).toContainText('Actual RM5250.00');
+  await expect(entryRow(page, 'Salary')).toContainText('Actual RM5,250.00');
 
   const rent = entryRow(page, 'Rent');
   await rent.getByText('Update actual').click();
@@ -101,7 +100,7 @@ test('records actuals against generated entries and preserves past months', asyn
   await rent.getByLabel('Actual amount').fill('1150');
   await rent.getByLabel('Paid date').fill('2026-07-02');
   await rent.getByRole('button', { name: 'Save entry actual' }).click();
-  await expect(entryRow(page, 'Rent')).toContainText('Actual RM1150.00');
+  await expect(entryRow(page, 'Rent')).toContainText('Actual RM1,150.00');
   await expect(entryRow(page, 'Rent')).toContainText('paid 2026-07-02');
 
   // 5250 actual income less 1150 rent, 500 savings and 300 investment.

@@ -10,28 +10,24 @@ test('restores an owner draft, reports by transaction date, and exports privatel
   await signIn(page, request, 'reports-pwa');
   await page.goto('/expenses');
 
-  const categoryForm = page.getByRole('heading', { name: 'Expense categories' })
-    .locator('..').locator('form');
+  const categoryForm = page.getByRole('region', { name: 'Expense categories' }).locator('form');
   await categoryForm.getByLabel('New category name').fill('Food');
   await categoryForm.getByRole('button', { name: 'Add category' }).click();
 
-  let expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
-    .locator('..').locator('form');
+  let expenseForm = page.getByRole('region', { name: 'Add personal expense' }).locator('form');
   await expenseForm.getByLabel('Amount').fill('12.50');
   await expenseForm.getByLabel('Description').fill('Backdated draft lunch');
   await expenseForm.getByLabel('Transaction date').fill('2026-06-30');
   await expenseForm.getByLabel('Category').selectOption({ label: 'Food' });
   await page.reload();
 
-  expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
-    .locator('..').locator('form');
+  expenseForm = page.getByRole('region', { name: 'Add personal expense' }).locator('form');
   await expect(expenseForm.getByLabel('Amount')).toHaveValue('12.50');
   await expect(expenseForm.getByLabel('Description')).toHaveValue('Backdated draft lunch');
   await expenseForm.getByRole('button', { name: 'Save expense' }).click();
   await expect(page.getByText('Backdated draft lunch', { exact: true }).first()).toBeVisible();
   await page.reload();
-  expenseForm = page.getByRole('heading', { name: 'Add personal expense' })
-    .locator('..').locator('form');
+  expenseForm = page.getByRole('region', { name: 'Add personal expense' }).locator('form');
   await expect(expenseForm.getByLabel('Amount')).toHaveValue('');
 
   await page.goto('/reports?range=month&month=2026-06');
