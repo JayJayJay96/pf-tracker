@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createFriend,
   createUnresolvedBill,
+  deleteSharedBill,
   resolveBillEqually,
   resolveConfiguredBill,
   type SharedBillWriteRepository,
@@ -20,9 +21,60 @@ function repository(
     }),
     saveEqualResolution: async () => ({ error: null }),
     saveResolution: async () => ({ error: null }),
+    deleteBill: async () => ({ error: null }),
     ...overrides,
   };
 }
+
+describe('deleting a shared bill', () => {
+  it('removes the bill for its owner', async () => {
+    let deleted: unknown;
+    await deleteSharedBill(repository({
+      deleteBill: async (billId, userId) => {
+        deleted = { billId, userId };
+        return { error: null };
+      },
+    }), 'user-a', 'bill-1');
+
+    expect(deleted).toEqual({ billId: 'bill-1', userId: 'user-a' });
+  });
+
+  it('explains a refusal caused by an existing payment request', async () => {
+    // The database blocks this, not the app: a requested portion is referenced
+    // by rows that do not cascade. The owner needs to be told what to do about
+    // it, not handed a foreign key error.
+    await expect(deleteSharedBill(repository({
+      deleteBill: async () => ({
+        error: {
+          message: 'insert or update on table violates foreign key constraint',
+          code: '23503',
+        },
+      }),
+    }), 'user-a', 'bill-1')).rejects.toThrow(/already been requested from a friend/);
+  });
+
+  it('passes any other failure through rather than dressing it up', async () => {
+    await expect(deleteSharedBill(repository({
+      deleteBill: async () => ({ error: { message: 'connection lost' } }),
+    }), 'user-a', 'bill-1')).rejects.toThrow('connection lost');
+  });
+
+  it('refuses to delete without an owner or a bill', async () => {
+    let called = false;
+    const spy = repository({
+      deleteBill: async () => {
+        called = true;
+        return { error: null };
+      },
+    });
+
+    await expect(deleteSharedBill(spy, '', 'bill-1')).rejects.toThrow();
+    await expect(deleteSharedBill(spy, 'user-a', '')).rejects.toThrow();
+    // Nothing may reach the database with a blank owner: without a user_id the
+    // match would not be scoped to whoever is signed in.
+    expect(called).toBe(false);
+  });
+});
 
 describe('shared bill actions', () => {
   it('creates an owner-scoped friend', async () => {

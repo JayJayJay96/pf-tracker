@@ -62,6 +62,17 @@ export function createSharedBillRepository(
       });
       return { error };
     },
+    async deleteBill(billId, userId) {
+      // transaction_type is part of the match so this can only ever remove a
+      // shared bill, never a personal expense that happens to carry this id.
+      const { error } = await client
+        .from('transactions')
+        .delete()
+        .eq('id', billId)
+        .eq('user_id', userId)
+        .eq('transaction_type', 'shared_expense');
+      return { error };
+    },
     async saveResolution(resolution) {
       const { error } = await client.rpc('save_shared_bill_resolution', {
         p_transaction_id: resolution.transactionId,

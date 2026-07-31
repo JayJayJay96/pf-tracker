@@ -9,7 +9,14 @@ import type {
 import { requireAmountInput, requireSignedAmountInput } from '../../domain/money';
 import { getCalendarMonth, type ISODate } from '../../domain/periods';
 
-type WriteResult = { error: { message: string } | null };
+/**
+ * `code` is Postgres's SQLSTATE, carried through by Supabase. Deletion needs it:
+ * a bill whose portions a friend has already been asked to pay is refused by a
+ * foreign key rather than by anything this code checks, and that refusal has to
+ * be told apart from a real failure so it can be explained rather than reported
+ * as "something went wrong".
+ */
+type WriteResult = { error: { message: string; code?: string } | null };
 type ReadResult = {
   data: { id: string; amount_sen: number } | null;
   error: { message: string } | null;
@@ -41,6 +48,7 @@ export type SharedBillWriteRepository = {
   getUnresolvedBill(billId: string, userId: string): Promise<ReadResult>;
   saveEqualResolution(resolution: EqualResolutionRow): Promise<WriteResult>;
   saveResolution(resolution: PersistedResolution): Promise<WriteResult>;
+  deleteBill(billId: string, userId: string): Promise<WriteResult>;
 };
 
 export type UnresolvedBillInput = {
@@ -170,6 +178,40 @@ export async function createUnresolvedBill(
     if (error instanceof Error && error.message !== '') throw error;
     throw new Error('Invalid shared bill');
   }
+}
+
+/** Postgres foreign key violation. */
+const FOREIGN_KEY_VIOLATION = '23503';
+
+/**
+ * Removes a shared bill and everything the bill itself owns.
+ *
+ * The items, participants, assignments and adjustments all cascade from the
+ * transaction, so one delete clears the whole bill. What does not cascade is a
+ * friend's side of it: once a portion has been put on a payment request or
+ * settled, those rows reference the participant directly and the database
+ * refuses the delete. That refusal is deliberate - it is the difference between
+ * correcting a mistake and erasing a record of money owed - so it is reported as
+ * a reason rather than a failure.
+ */
+export async function deleteSharedBill(
+  repository: SharedBillWriteRepository,
+  userId: string,
+  billId: string,
+): Promise<void> {
+  const { error } = await repository.deleteBill(
+    requireText(billId, 'That shared bill could not be found.'),
+    requireText(userId, 'That shared bill could not be found.'),
+  );
+  if (!error) return;
+
+  if (error.code === FOREIGN_KEY_VIOLATION) {
+    throw new Error(
+      'This bill has already been requested from a friend, so deleting it would '
+      + 'lose a record of what they owe. Cancel the payment request first.',
+    );
+  }
+  throw new Error(error.message);
 }
 
 export async function resolveBillEqually(

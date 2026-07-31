@@ -9,6 +9,7 @@ import { createClient } from '../../../src/lib/supabase/server';
 import {
   createBillAction,
   createFriendAction,
+  deleteBillAction,
   resolveBillAction,
 } from './actions';
 
@@ -40,6 +41,7 @@ export default async function SharedBillsPage() {
         createFriend: createFriendAction,
         createBill: createBillAction,
         resolveBill: resolveBillAction,
+        deleteBill: deleteBillAction,
       }}
     />
   );

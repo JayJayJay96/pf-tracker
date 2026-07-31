@@ -3,6 +3,31 @@ import { expect, test } from '@playwright/test';
 import { signIn } from './support/auth';
 
 
+test('deletes a shared bill recorded by mistake', async ({ page, request }) => {
+  await signIn(page, request, 'bill-delete');
+  await page.goto('/shared-bills');
+
+  const billForm = page.getByRole('region', { name: 'Record shared bill' }).locator('form');
+  await billForm.getByLabel('Amount').fill('25.00');
+  await billForm.getByLabel('Description').fill('Wrong bill');
+  await billForm.getByLabel('Transaction date').fill('2026-07-09');
+  await billForm.getByRole('button', { name: 'Save unresolved bill' }).click();
+  await expect(page.getByText('Shared bill saved.')).toBeVisible();
+
+  const bill = page.getByRole('listitem').filter({ hasText: 'Wrong bill' });
+  await expect(bill).toBeVisible();
+
+  // Two steps on purpose: the first press only arms the confirmation.
+  await bill.getByRole('button', { name: 'Delete Wrong bill' }).click();
+  await bill.getByRole('button', { name: 'Yes, delete permanently' }).click();
+
+  await expect(page.getByRole('listitem').filter({ hasText: 'Wrong bill' })).toHaveCount(0);
+
+  // The bill was a cash outflow, so removing it has to release the money too.
+  await page.goto('/?month=2026-07');
+  await expect(page.getByRole('region', { name: 'Month totals' })).toContainText('RM0.00');
+});
+
 test('moves a shared bill from unresolved cash outflow to exact portions', async ({
   page,
   request,

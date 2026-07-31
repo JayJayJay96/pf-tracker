@@ -1,5 +1,6 @@
 import { formatMoney } from '../../domain/money';
 import { ActionForm } from '../forms/action-form';
+import { ConfirmSubmit } from '../forms/confirm-submit';
 import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
 import { displayDate } from '../ui/dates';
@@ -34,6 +35,7 @@ type SharedBillViewProps = {
     createFriend: FormAction;
     createBill: FormAction;
     resolveBill: FormAction;
+    deleteBill: FormAction;
   };
 };
 
@@ -139,6 +141,21 @@ export function SharedBillView({
                     ))}
                   </ul>
                 )}
+
+                {/*
+                  A bill was previously permanent once saved, with no way to undo
+                  a typo. Deleting removes the bill and its split; if a friend has
+                  already been asked to pay, the action explains why it will not.
+                */}
+                <ActionForm action={actions?.deleteBill} resetOnSuccess={false}>
+                  <input type="hidden" name="billId" value={bill.id} />
+                  <ConfirmSubmit
+                    label={`Delete ${bill.description}`}
+                    description={'This permanently removes the bill, its split, and '
+                      + 'its effect on the month it belongs to.'}
+                    confirmLabel="Yes, delete permanently"
+                  />
+                </ActionForm>
               </Record>
             ))}
           </RecordList>

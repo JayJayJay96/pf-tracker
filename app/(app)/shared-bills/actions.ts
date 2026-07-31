@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import {
   createFriend,
   createUnresolvedBill,
+  deleteSharedBill,
   resolveConfiguredBill,
   type ConfiguredResolutionInput,
 } from '../../../src/features/bills/actions';
@@ -72,6 +73,18 @@ export async function createBillAction(
     }),
     revalidateSharedBills,
     'That shared bill could not be saved.',
+  );
+}
+
+export async function deleteBillAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
+  const { repository, userId } = await context();
+  return submit(
+    () => deleteSharedBill(repository, userId, value(formData, 'billId')),
+    revalidateSharedBills,
+    'That shared bill could not be deleted.',
   );
 }
 
