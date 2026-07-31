@@ -5,6 +5,7 @@ import { MoneyInput } from '../forms/money-input';
 import type { FormResult } from '../forms/result';
 import { displayDate } from '../ui/dates';
 import {
+  Disclosure,
   Empty,
   Field,
   PageShell,
@@ -25,6 +26,7 @@ const SUBMIT_CLASS = 'justify-self-start rounded-lg border border-hairline-stron
   + 'hover:bg-accent/20';
 const QUIET_SUBMIT_CLASS = 'justify-self-start rounded-lg border border-hairline '
   + 'bg-transparent px-4 py-2.5 text-ink hover:border-hairline-strong';
+const CHECK_ROW = 'flex min-h-9 items-center gap-2 text-sm text-ink';
 
 type SharedBillViewProps = {
   friends: Friend[];
@@ -33,8 +35,10 @@ type SharedBillViewProps = {
   userId?: string;
   actions?: {
     createFriend: FormAction;
+    deleteFriend: FormAction;
     createBill: FormAction;
     resolveBill: FormAction;
+    splitEvenly: FormAction;
     deleteBill: FormAction;
   };
 };
@@ -96,12 +100,29 @@ export function SharedBillView({
           </Field>
           <button className={QUIET_SUBMIT_CLASS} type="submit">Add friend</button>
         </ActionForm>
+        {/*
+          A list rather than one comma-joined line, because a name typed wrongly
+          used to be permanent: there was nowhere to act on an individual friend.
+        */}
         {friends.length === 0 ? (
-          <Empty>Add a friend before resolving a bill.</Empty>
+          <Empty>Add a friend before splitting a bill.</Empty>
         ) : (
-          <p className="text-sm text-ink-muted">
-            {friends.map(({ name }) => name).join(', ')}
-          </p>
+          <RecordList>
+            {friends.map((friend) => (
+              <Record key={friend.id}>
+                <span className="text-ink">{friend.name}</span>
+                <ActionForm action={actions?.deleteFriend} resetOnSuccess={false}>
+                  <input type="hidden" name="friendId" value={friend.id} />
+                  <ConfirmSubmit
+                    label={`Remove ${friend.name}`}
+                    description={'This only works while no bill involves them, so '
+                      + 'nothing already owed can be lost.'}
+                    confirmLabel="Yes, remove them"
+                  />
+                </ActionForm>
+              </Record>
+            ))}
+          </RecordList>
         )}
       </Section>
 
@@ -126,12 +147,53 @@ export function SharedBillView({
                 </p>
 
                 {bill.status === 'unresolved' ? (
-                  <ResolutionEditor
-                    billId={bill.id}
-                    totalSen={bill.amountSen}
-                    friends={friends}
-                    action={actions?.resolveBill}
-                  />
+                  <>
+                    {/*
+                      Splitting evenly is what most bills need, and it used to be
+                      reachable only by driving the full editor: name an item,
+                      retype the amount, enter a zero discount, tick everyone,
+                      then confirm. It leads now, and the editor is here for the
+                      bills that genuinely differ per item.
+                    */}
+                    {friends.length === 0 ? (
+                      <Empty>Add a friend above before splitting this bill.</Empty>
+                    ) : (
+                      <ActionForm
+                        action={actions?.splitEvenly}
+                        resetOnSuccess={false}
+                        successMessage="Split evenly."
+                      >
+                        <input type="hidden" name="billId" value={bill.id} />
+                        <fieldset className="col-span-full grid gap-1 border-0 p-0">
+                          <legend className="pb-1 text-sm text-ink-muted">
+                            Split evenly with
+                          </legend>
+                          {friends.map((friend) => (
+                            <label className={CHECK_ROW} key={friend.id}>
+                              <input
+                                type="checkbox"
+                                name="friendIds"
+                                value={friend.id}
+                              />
+                              {friend.name}
+                            </label>
+                          ))}
+                        </fieldset>
+                        <button className={SUBMIT_CLASS} type="submit">
+                          Split evenly
+                        </button>
+                      </ActionForm>
+                    )}
+
+                    <Disclosure summary="Split by item, or add a service charge">
+                      <ResolutionEditor
+                        billId={bill.id}
+                        totalSen={bill.amountSen}
+                        friends={friends}
+                        action={actions?.resolveBill}
+                      />
+                    </Disclosure>
+                  </>
                 ) : (
                   <ul className="grid list-none gap-1 p-0">
                     {bill.friendPortions.map((portion) => (

@@ -10,7 +10,9 @@ import {
   createBillAction,
   createFriendAction,
   deleteBillAction,
+  deleteFriendAction,
   resolveBillAction,
+  splitBillEvenlyAction,
 } from './actions';
 
 export const metadata = {
@@ -39,8 +41,10 @@ export default async function SharedBillsPage() {
       userId={userId}
       actions={{
         createFriend: createFriendAction,
+        deleteFriend: deleteFriendAction,
         createBill: createBillAction,
         resolveBill: resolveBillAction,
+        splitEvenly: splitBillEvenlyAction,
         deleteBill: deleteBillAction,
       }}
     />

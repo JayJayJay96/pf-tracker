@@ -22,6 +22,12 @@ export function createExpenseRepository(client: SupabaseClient): ExpenseReposito
         .order('name');
       return { data, error };
     },
+    async insertCategories(categories) {
+      // One statement rather than five round trips, so a failure halfway
+      // through cannot leave a partial starter set behind.
+      const { error } = await client.from('categories').insert(categories);
+      return { error };
+    },
     async listExpenses(userId, filters) {
       let query = client
         .from('transactions')

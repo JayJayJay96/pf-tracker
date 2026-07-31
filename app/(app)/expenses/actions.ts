@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import {
   createExpense,
   createExpenseCategory,
+  createStarterCategories,
   deleteExpense,
   updateExpense,
   type ExpenseInput,
@@ -64,6 +65,19 @@ export async function createCategoryAction(
   const { repository, userId } = await authorizedExpenseContext();
   return submit(
     () => createExpenseCategory(repository, userId, readString(formData, 'name')),
+    () => revalidatePath('/expenses'),
+  );
+}
+
+/**
+ * Takes no arguments on purpose: the set is fixed, so there is nothing to read
+ * off the form. A function of fewer parameters still satisfies the action shape
+ * the form expects.
+ */
+export async function createStarterCategoriesAction(): Promise<FormResult> {
+  const { repository, userId } = await authorizedExpenseContext();
+  return submit(
+    () => createStarterCategories(repository, userId),
     () => revalidatePath('/expenses'),
   );
 }

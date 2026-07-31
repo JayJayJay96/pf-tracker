@@ -35,6 +35,12 @@ export type ExpenseWriteRepository = {
     type: 'expense';
     is_active: true;
   }): Promise<WriteResult>;
+  insertCategories(categories: ReadonlyArray<{
+    user_id: string;
+    name: string;
+    type: 'expense';
+    is_active: true;
+  }>): Promise<WriteResult>;
   insertExpense(expense: NewExpense): Promise<WriteResult>;
   updateExpense(
     expenseId: string,
@@ -157,6 +163,39 @@ export async function createExpenseCategory(
     type: 'expense',
     is_active: true,
   }));
+}
+
+/**
+ * A starting set of categories, so the first expense can just be recorded.
+ *
+ * An expense cannot be saved without a category and nothing seeds any, so the
+ * very first thing a new owner did was not record a purchase - it was invent a
+ * taxonomy. These are only a starting point: they can be added to, and each one
+ * is an ordinary category with nothing special about it.
+ */
+export const STARTER_CATEGORY_NAMES = [
+  'Food',
+  'Transport',
+  'Groceries',
+  'Bills',
+  'Fun',
+] as const;
+
+export async function createStarterCategories(
+  repository: ExpenseWriteRepository,
+  userId: string,
+): Promise<FormResult> {
+  if (userId.trim() === '') {
+    return failed('Sign in again to add categories.');
+  }
+  return writeResultToForm(await repository.insertCategories(
+    STARTER_CATEGORY_NAMES.map((name) => ({
+      user_id: userId,
+      name,
+      type: 'expense' as const,
+      is_active: true as const,
+    })),
+  ));
 }
 
 export async function createExpense(

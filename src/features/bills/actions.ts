@@ -6,7 +6,11 @@ import type {
   BillAdjustment,
   BillItem,
 } from '../../domain/bills/types';
-import { requireAmountInput, requireSignedAmountInput } from '../../domain/money';
+import {
+  formatAmountInput,
+  requireAmountInput,
+  requireSignedAmountInput,
+} from '../../domain/money';
 import { getCalendarMonth, type ISODate } from '../../domain/periods';
 
 /**
@@ -49,6 +53,7 @@ export type SharedBillWriteRepository = {
   saveEqualResolution(resolution: EqualResolutionRow): Promise<WriteResult>;
   saveResolution(resolution: PersistedResolution): Promise<WriteResult>;
   deleteBill(billId: string, userId: string): Promise<WriteResult>;
+  deleteFriend(friendId: string, userId: string): Promise<WriteResult>;
 };
 
 export type UnresolvedBillInput = {
@@ -214,6 +219,38 @@ export async function deleteSharedBill(
   throw new Error(error.message);
 }
 
+/**
+ * Removes a friend.
+ *
+ * There was no way to do this at all: a name typed wrongly once stayed in the
+ * list forever, and appeared in the participant checklist of every bill after it.
+ *
+ * A friend who is already on a bill cannot be removed, because their portions and
+ * any payment requests reference them and do not cascade. That is right - it
+ * would otherwise erase who owed what - so the case this serves is the one that
+ * needed serving: a friend added by mistake, before any bill involves them.
+ */
+export async function deleteFriendRecord(
+  repository: SharedBillWriteRepository,
+  userId: string,
+  friendId: string,
+): Promise<void> {
+  const { error } = await repository.deleteFriend(
+    requireText(friendId, 'That friend could not be found.'),
+    requireText(userId, 'That friend could not be found.'),
+  );
+  if (!error) return;
+
+  if (error.code === FOREIGN_KEY_VIOLATION) {
+    throw new Error(
+      'This friend appears on a bill already, so removing them would lose the '
+      + 'record of their share. Delete those bills first if the friend was added '
+      + 'by mistake.',
+    );
+  }
+  throw new Error(error.message);
+}
+
 export async function resolveBillEqually(
   repository: SharedBillWriteRepository,
   userId: string,
@@ -272,6 +309,54 @@ export async function resolveBillEqually(
     user_amount_sen: portion.get(userParticipantId) ?? 0,
     friend_amount_sen: portion.get(friendParticipantId) ?? 0,
   }));
+}
+
+export type EvenSplitInput = { billId: string; friendIds: string[] };
+
+/**
+ * Splits the whole bill equally between the owner and the chosen friends.
+ *
+ * This is the common case - a meal shared with someone - and until now the only
+ * way to record it was the full editor: name an item, retype the amount, set a
+ * discount of zero, tick each person, then confirm a reviewed allocation. Eight
+ * or so interactions to say "halves".
+ *
+ * It delegates to the configured path rather than doing its own arithmetic, so
+ * remainders divide by exactly the same audited rules. `confirmed` is set here
+ * because pressing this button *is* the confirmation: an even split is entirely
+ * predictable from the total, unlike an arbitrary set of items and charges, which
+ * is why the editor keeps its review step.
+ */
+export async function resolveBillEvenly(
+  repository: SharedBillWriteRepository,
+  userId: string,
+  input: EvenSplitInput,
+): Promise<void> {
+  const ownerId = requireText(userId, 'Invalid shared bill resolution');
+  const billId = requireText(input.billId, 'Invalid shared bill resolution');
+  if (!Array.isArray(input.friendIds) || input.friendIds.length === 0) {
+    throw new Error('Choose at least one friend to split this bill with.');
+  }
+
+  const billResult = await repository.getUnresolvedBill(billId, ownerId);
+  if (billResult.error) throw new Error(billResult.error.message);
+  const bill = billResult.data;
+  if (!bill || !Number.isSafeInteger(bill.amount_sen) || bill.amount_sen <= 0) {
+    throw new Error('Unresolved shared bill not found');
+  }
+
+  return resolveConfiguredBill(repository, ownerId, {
+    billId,
+    confirmed: true,
+    friendIds: input.friendIds,
+    items: [{
+      description: 'Split evenly',
+      amount: formatAmountInput(bill.amount_sen),
+      discount: '0.00',
+      participantIds: ['user', ...input.friendIds],
+    }],
+    adjustments: [],
+  });
 }
 
 export async function resolveConfiguredBill(

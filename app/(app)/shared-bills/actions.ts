@@ -5,7 +5,9 @@ import { revalidatePath } from 'next/cache';
 import {
   createFriend,
   createUnresolvedBill,
+  deleteFriendRecord,
   deleteSharedBill,
+  resolveBillEvenly,
   resolveConfiguredBill,
   type ConfiguredResolutionInput,
 } from '../../../src/features/bills/actions';
@@ -85,6 +87,35 @@ export async function deleteBillAction(
     () => deleteSharedBill(repository, userId, value(formData, 'billId')),
     revalidateSharedBills,
     'That shared bill could not be deleted.',
+  );
+}
+
+export async function deleteFriendAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
+  const { repository, userId } = await context();
+  return submit(
+    () => deleteFriendRecord(repository, userId, value(formData, 'friendId')),
+    revalidateSharedBills,
+    'That friend could not be removed.',
+  );
+}
+
+export async function splitBillEvenlyAction(
+  _previous: FormResult,
+  formData: FormData,
+): Promise<FormResult> {
+  const { repository, userId } = await context();
+  return submit(
+    () => resolveBillEvenly(repository, userId, {
+      billId: value(formData, 'billId'),
+      // Every ticked friend arrives under the same field name.
+      friendIds: formData.getAll('friendIds')
+        .filter((id): id is string => typeof id === 'string'),
+    }),
+    revalidateSharedBills,
+    'That bill could not be split.',
   );
 }
 

@@ -22,6 +22,8 @@ describe('shared bill view', () => {
     expect(page.indexOf('id="friends-heading"')).toBeLessThan(
       page.indexOf('id="shared-bills-heading"'),
     );
-    expect(page).toContain('Add a friend before resolving a bill.');
+    // "Splitting" rather than "resolving": the screen leads with an even split
+    // now, and resolve was the data model's word for it, not a person's.
+    expect(page).toContain('Add a friend before splitting a bill.');
   });
 });

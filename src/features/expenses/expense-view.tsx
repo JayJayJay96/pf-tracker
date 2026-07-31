@@ -14,6 +14,7 @@ import {
   RecordList,
   Section,
 } from '../ui/page';
+import { STARTER_CATEGORY_NAMES } from './actions';
 import type {
   Expense,
   ExpenseCategory,
@@ -47,6 +48,7 @@ type ExpenseViewProps = {
   userId?: string;
   actions?: {
     createCategory: FormAction;
+    createStarterCategories: FormAction;
     create: FormAction;
     update: FormAction;
     delete: FormAction;
@@ -152,10 +154,27 @@ export function ExpenseView({
   return (
     <PageShell title="Personal Expenses">
       <Section id="add-expense" title="Add personal expense">
+        {/*
+          An expense needs a category and nothing seeds any, so the first thing a
+          new owner met was a disabled form and an instruction to go and invent a
+          taxonomy first. One press gets them past it; naming their own categories
+          is still there for anyone who wants to.
+        */}
         {blocked ? (
-          <p className="rounded-lg border border-hairline bg-black/25 px-4 py-3 text-sm text-ink-muted">
-            Add your first category below, then this form unlocks.
-          </p>
+          <div className="grid gap-2.5 rounded-lg border border-hairline bg-black/25 px-4 py-3.5">
+            <p className="text-sm text-ink-muted">
+              An expense needs a category. Start with a common set, or name your
+              own below.
+            </p>
+            <ActionForm
+              action={actions?.createStarterCategories}
+              successMessage="Categories added. Record your first expense above."
+            >
+              <button className={SUBMIT_CLASS} type="submit">
+                Add {STARTER_CATEGORY_NAMES.join(', ')}
+              </button>
+            </ActionForm>
+          </div>
         ) : null}
         <ActionForm
           action={actions?.create}

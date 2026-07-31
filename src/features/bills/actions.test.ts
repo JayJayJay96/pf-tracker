@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   createFriend,
   createUnresolvedBill,
+  deleteFriendRecord,
   deleteSharedBill,
+  resolveBillEvenly,
   resolveBillEqually,
   resolveConfiguredBill,
   type SharedBillWriteRepository,
@@ -22,9 +24,82 @@ function repository(
     saveEqualResolution: async () => ({ error: null }),
     saveResolution: async () => ({ error: null }),
     deleteBill: async () => ({ error: null }),
+    deleteFriend: async () => ({ error: null }),
     ...overrides,
   };
 }
+
+describe('splitting a bill evenly', () => {
+  it('charges the whole bill to everyone chosen, in equal shares', async () => {
+    let saved: { participants?: unknown; items?: unknown } | undefined;
+    await resolveBillEvenly(repository({
+      getUnresolvedBill: async () => ({
+        data: { id: 'bill-1', amount_sen: 1_500 },
+        error: null,
+      }),
+      saveResolution: async (resolution) => {
+        saved = resolution as typeof saved;
+        return { error: null };
+      },
+    }), 'user-a', { billId: 'bill-1', friendIds: ['friend-1', 'friend-2'] });
+
+    // RM15 three ways: the owner and two friends, RM5 each.
+    expect(saved).toBeDefined();
+    const participants = saved?.participants as Array<{ amount_sen: number }>;
+    expect(participants).toHaveLength(3);
+    expect(participants.map(({ amount_sen }) => amount_sen)).toEqual([500, 500, 500]);
+  });
+
+  it('divides a remainder rather than losing or inventing a sen', async () => {
+    let saved: { participants?: unknown } | undefined;
+    await resolveBillEvenly(repository({
+      getUnresolvedBill: async () => ({
+        data: { id: 'bill-1', amount_sen: 1_000 },
+        error: null,
+      }),
+      saveResolution: async (resolution) => {
+        saved = resolution as typeof saved;
+        return { error: null };
+      },
+    }), 'user-a', { billId: 'bill-1', friendIds: ['friend-1', 'friend-2'] });
+
+    // RM10 three ways does not divide. Whatever the rounding rule, the shares
+    // must still add back up to exactly the bill.
+    const participants = saved?.participants as Array<{ amount_sen: number }>;
+    const total = participants.reduce((sum, { amount_sen }) => sum + amount_sen, 0);
+    expect(total).toBe(1_000);
+  });
+
+  it('refuses with nobody to split with', async () => {
+    await expect(resolveBillEvenly(
+      repository(),
+      'user-a',
+      { billId: 'bill-1', friendIds: [] },
+    )).rejects.toThrow(/at least one friend/);
+  });
+});
+
+describe('removing a friend', () => {
+  it('removes the friend for their owner', async () => {
+    let deleted: unknown;
+    await deleteFriendRecord(repository({
+      deleteFriend: async (friendId, userId) => {
+        deleted = { friendId, userId };
+        return { error: null };
+      },
+    }), 'user-a', 'friend-1');
+
+    expect(deleted).toEqual({ friendId: 'friend-1', userId: 'user-a' });
+  });
+
+  it('explains that a friend already on a bill cannot be removed', async () => {
+    await expect(deleteFriendRecord(repository({
+      deleteFriend: async () => ({
+        error: { message: 'violates foreign key constraint', code: '23503' },
+      }),
+    }), 'user-a', 'friend-1')).rejects.toThrow(/appears on a bill already/);
+  });
+});
 
 describe('deleting a shared bill', () => {
   it('removes the bill for its owner', async () => {

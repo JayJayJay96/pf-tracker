@@ -11,6 +11,7 @@ import { createClient } from '../../../src/lib/supabase/server';
 import {
   createCategoryAction,
   createExpenseAction,
+  createStarterCategoriesAction,
   deleteExpenseAction,
   updateExpenseAction,
 } from './actions';
@@ -67,6 +68,7 @@ export default async function ExpensesPage({ searchParams }: ExpensePageProps) {
       userId={userId}
       actions={{
         createCategory: createCategoryAction,
+        createStarterCategories: createStarterCategoriesAction,
         create: createExpenseAction,
         update: updateExpenseAction,
         delete: deleteExpenseAction,

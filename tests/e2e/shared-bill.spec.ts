@@ -75,6 +75,11 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
 
   await page.goto('/shared-bills');
   const unresolvedBill = page.getByRole('listitem').filter({ hasText: 'Shared lunch' });
+  // The item editor sits behind a disclosure now: splitting evenly is what most
+  // bills need, so it leads, and this is the path for bills that differ per item.
+  await unresolvedBill
+    .getByText('Split by item, or add a service charge')
+    .click();
   await unresolvedBill.getByLabel('Include Alex').check();
   await unresolvedBill.getByLabel('Include Bee').check();
   await unresolvedBill.getByLabel('Item 1 description').fill('Pizza');

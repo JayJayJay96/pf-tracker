@@ -62,6 +62,14 @@ export function createSharedBillRepository(
       });
       return { error };
     },
+    async deleteFriend(friendId, userId) {
+      const { error } = await client
+        .from('friends')
+        .delete()
+        .eq('id', friendId)
+        .eq('user_id', userId);
+      return { error };
+    },
     async deleteBill(billId, userId) {
       // transaction_type is part of the match so this can only ever remove a
       // shared bill, never a personal expense that happens to carry this id.

@@ -86,10 +86,13 @@ async function createAndResolveBill(
   await billForm.getByRole('button', { name: 'Save unresolved bill' }).click();
 
   const bill = page.getByRole('listitem').filter({ hasText: description });
-  await bill.getByLabel('Include Alex').check();
-  await bill.getByLabel('Item 1 description').fill(description);
-  await bill.getByLabel('Item 1 assign Alex').check();
-  await bill.getByLabel('Confirm reviewed allocation').check();
-  await bill.getByRole('button', { name: 'Resolve shared bill' }).click();
+  // Every bill here splits in half, which is what the even split does directly.
+  // This used to drive the item editor to reach the same figures: name an item,
+  // tick the assignee, confirm the allocation. The editor keeps its coverage in
+  // shared-bill.spec.ts, which exercises items, charges and manual amounts.
+  // exact, because the editor inside the disclosure also labels checkboxes
+  // "Include Alex" and "Item 1 assign Alex".
+  await bill.getByLabel('Alex', { exact: true }).check();
+  await bill.getByRole('button', { name: 'Split evenly' }).click();
   await expect(bill).toContainText('Resolved');
 }

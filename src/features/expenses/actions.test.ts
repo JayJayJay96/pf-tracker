@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   createExpenseCategory,
   createExpense,
+  createStarterCategories,
   deleteExpense,
+  STARTER_CATEGORY_NAMES,
   updateExpense,
   type ExpenseWriteRepository,
 } from './actions';
@@ -11,6 +13,7 @@ import {
 function repository(overrides: Partial<ExpenseWriteRepository> = {}): ExpenseWriteRepository {
   return {
     insertCategory: async () => ({ error: null }),
+    insertCategories: async () => ({ error: null }),
     insertExpense: async () => ({ error: null }),
     updateExpense: async () => ({ error: null }),
     deleteExpense: async () => ({ error: null }),
@@ -27,6 +30,40 @@ const validInput = {
   paymentMethod: 'tng',
   notes: 'Forgotten yesterday',
 };
+
+describe('starter categories', () => {
+  it('adds the whole set for the owner in one write', async () => {
+    let inserted: unknown;
+    await createStarterCategories(repository({
+      insertCategories: async (categories) => {
+        inserted = categories;
+        return { error: null };
+      },
+    }), 'user-a');
+
+    // One write, not five: a failure partway through would otherwise leave the
+    // owner with half a starter set and no obvious way to tell.
+    expect(inserted).toEqual(STARTER_CATEGORY_NAMES.map((name) => ({
+      user_id: 'user-a',
+      name,
+      type: 'expense',
+      is_active: true,
+    })));
+  });
+
+  it('refuses without a signed-in owner', async () => {
+    let called = false;
+    const result = await createStarterCategories(repository({
+      insertCategories: async () => {
+        called = true;
+        return { error: null };
+      },
+    }), '');
+
+    expect(result.status).toBe('error');
+    expect(called).toBe(false);
+  });
+});
 
 describe('personal expense actions', () => {
   it('creates an owner-scoped expense category', async () => {
