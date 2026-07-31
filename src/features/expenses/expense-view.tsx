@@ -166,10 +166,12 @@ export function ExpenseView({
               An expense needs a category. Start with a common set, or name your
               own below.
             </p>
-            <ActionForm
-              action={actions?.createStarterCategories}
-              successMessage="Categories added. Record your first expense above."
-            >
+            {/*
+              No success message: this whole block is what disappears when the
+              categories exist, so a banner inside it would unmount before it
+              could be read. The form above unlocking is the feedback.
+            */}
+            <ActionForm action={actions?.createStarterCategories}>
               <button className={SUBMIT_CLASS} type="submit">
                 Add {STARTER_CATEGORY_NAMES.join(', ')}
               </button>

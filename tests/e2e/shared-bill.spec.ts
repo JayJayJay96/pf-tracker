@@ -3,6 +3,49 @@ import { expect, test } from '@playwright/test';
 import { signIn } from './support/auth';
 
 
+test('removes a friend added by mistake, but not one already on a bill', async ({
+  page,
+  request,
+}) => {
+  await signIn(page, request, 'friend-remove');
+  await page.goto('/shared-bills');
+
+  const friendForm = page.getByRole('region', { name: 'Friends' }).locator('form')
+    .filter({ has: page.getByRole('button', { name: 'Add friend' }) });
+  await friendForm.getByLabel('Friend name').fill('Typo');
+  await friendForm.getByRole('button', { name: 'Add friend' }).click();
+  await expect(page.getByText('Friend added.')).toBeVisible();
+
+  const typo = page.getByRole('listitem').filter({ hasText: 'Typo' });
+  await typo.getByRole('button', { name: 'Remove Typo' }).click();
+  await typo.getByRole('button', { name: 'Yes, remove them' }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Typo' })).toHaveCount(0);
+
+  // A friend who is on a bill is a different matter: their portion is a record
+  // of what they owe, so the database refuses and the refusal has to be readable.
+  await friendForm.getByLabel('Friend name').fill('Alex');
+  await friendForm.getByRole('button', { name: 'Add friend' }).click();
+
+  const billForm = page.getByRole('region', { name: 'Record shared bill' }).locator('form');
+  await billForm.getByLabel('Amount').fill('12.00');
+  await billForm.getByLabel('Description').fill('Lunch with Alex');
+  await billForm.getByLabel('Transaction date').fill('2026-07-05');
+  await billForm.getByRole('button', { name: 'Save unresolved bill' }).click();
+
+  const bill = page.getByRole('listitem').filter({ hasText: 'Lunch with Alex' });
+  await bill.getByLabel('Alex', { exact: true }).check();
+  await bill.getByRole('button', { name: 'Split evenly' }).click();
+  await expect(bill).toContainText('Resolved');
+
+  const alex = page.getByRole('listitem').filter({ hasText: 'Alex' }).first();
+  await alex.getByRole('button', { name: 'Remove Alex' }).click();
+  await alex.getByRole('button', { name: 'Yes, remove them' }).click();
+
+  await expect(page.getByText(/appears on a bill already/)).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Alex' }).first())
+    .toBeVisible();
+});
+
 test('deletes a shared bill recorded by mistake', async ({ page, request }) => {
   await signIn(page, request, 'bill-delete');
   await page.goto('/shared-bills');
