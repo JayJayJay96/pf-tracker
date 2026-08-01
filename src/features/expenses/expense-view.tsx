@@ -184,6 +184,8 @@ export function ExpenseView({
           formId={userId ? 'personal-expense' : undefined}
           successMessage="Expense saved."
           clearOnSuccess={['amount', 'description', 'merchant', 'notes']}
+          // Two purchases in a row are usually the same kind, paid the same way.
+          keepOnSuccess={['categoryId', 'paymentMethod', 'transactionDate']}
         >
           <ExpenseFields
             categories={categories}

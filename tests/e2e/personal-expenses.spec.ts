@@ -41,6 +41,47 @@ test('offers a starting set of categories so a first expense can just be recorde
   await expect(history).toContainText('RM4.50');
 });
 
+test('remembers the category so a second expense does not re-pick it', async ({
+  page,
+  request,
+}) => {
+  await signIn(page, request, 'sticky-category');
+  await page.goto('/expenses');
+  await page.getByRole('button', { name: /^Add Food, Transport/ }).click();
+
+  const form = page.locator('form', {
+    has: page.getByRole('button', { name: 'Save expense', exact: true }),
+  });
+  await expect(form.getByRole('button', { name: 'Save expense' })).toBeEnabled();
+
+  await form.getByLabel('Amount').fill('12.50');
+  await form.getByLabel('Description').fill('Nasi lemak');
+  await form.getByLabel('Category').selectOption({ label: 'Food' });
+  await form.getByLabel('Payment method').selectOption('cash');
+  await form.getByRole('button', { name: 'Save expense' }).click();
+  await expect(page.getByText('Expense saved.')).toBeVisible();
+
+  // React resets a form once its action resolves, which used to empty these and
+  // send the owner back to "Select category" for every single purchase.
+  await expect(form.getByLabel('Category').locator('option:checked'))
+    .toHaveText('Food');
+  await expect(form.getByLabel('Payment method')).toHaveValue('cash');
+  // The transient fields still clear, so the next amount starts empty.
+  await expect(form.getByLabel('Amount')).toHaveValue('');
+  await expect(form.getByLabel('Description')).toHaveValue('');
+
+  // So a second purchase of the same kind needs only an amount and a description.
+  await form.getByLabel('Amount').fill('4.00');
+  await form.getByLabel('Description').fill('Kopi');
+  await form.getByRole('button', { name: 'Save expense' }).click();
+  await expect(page.getByText('Expense saved.')).toBeVisible();
+
+  const history = page.getByRole('region', { name: 'Transaction history' });
+  await expect(history).toContainText('Kopi');
+  await expect(history).toContainText('2 expenses');
+  await expect(history).toContainText('RM16.50');
+});
+
 test('records and reports a searchable backdated personal expense', async ({
   page,
   request,

@@ -74,6 +74,7 @@ export function ActionForm({
   formId,
   resetOnSuccess = true,
   clearOnSuccess,
+  keepOnSuccess,
   successMessage,
 }: {
   action?: ServerFormAction;
@@ -91,6 +92,20 @@ export function ActionForm({
    * second expense starts from the first one.
    */
   clearOnSuccess?: string[];
+  /**
+   * Field names whose value should survive a submission.
+   *
+   * React resets a form once its action resolves - a real `reset` event, measured
+   * rather than assumed. For the fields being cleared anyway that is invisible,
+   * which is why it went unnoticed. For a remembered choice it is not: picking
+   * Food, saving, and finding "Select category" again is worse than never
+   * remembering, because the form looks ready when it is not.
+   *
+   * `defaultValue` cannot cover it. The remembered category is derived from the
+   * most recent expense, so on a first visit there is nothing to default to, and
+   * the reset returns the field to exactly that empty default.
+   */
+  keepOnSuccess?: string[];
   successMessage?: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -103,6 +118,8 @@ export function ActionForm({
   const persistsDraft = draftUserId !== undefined && draftFormId !== undefined;
   // Joined so the effect below depends on a stable value, not a fresh array.
   const clearFields = clearOnSuccess?.join(',');
+  const keepFields = keepOnSuccess?.join(',');
+  const kept = useRef<Record<string, string>>({});
 
   useEffect(() => {
     if (draftUserId === undefined || draftFormId === undefined) return;
@@ -126,7 +143,37 @@ export function ActionForm({
     if (resetOnSuccess) form.reset();
   }, [clearFields, draftFormId, draftUserId, resetOnSuccess, result]);
 
+  /*
+   * Puts the kept fields back after the reset.
+   *
+   * The values are read from the form as they are typed, because by the time the
+   * reset happens the form no longer holds them. Restoring has to be deferred: a
+   * `reset` event fires *before* the controls are cleared, so assigning inside the
+   * handler would simply be overwritten. A microtask lands just after.
+   */
+  function restoreKept(event: FormEvent<HTMLFormElement>): void {
+    if (keepFields === undefined) return;
+    const form = event.currentTarget;
+    const values = { ...kept.current };
+    queueMicrotask(() => restore(form, values));
+  }
+
+  function remember(form: HTMLFormElement): void {
+    if (keepFields === undefined) return;
+    for (const name of keepFields.split(',')) {
+      const field = form.elements.namedItem(name);
+      if (
+        field instanceof HTMLInputElement
+        || field instanceof HTMLSelectElement
+        || field instanceof HTMLTextAreaElement
+      ) {
+        kept.current[name] = field.value;
+      }
+    }
+  }
+
   function persist(event: FormEvent<HTMLFormElement>): void {
+    remember(event.currentTarget);
     if (draftUserId === undefined || draftFormId === undefined) return;
     saveDraft(
       window.localStorage,
@@ -162,7 +209,8 @@ export function ActionForm({
         className="grid items-end gap-x-3 gap-y-6 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]"
         ref={formRef}
         action={submit}
-        onInput={persistsDraft ? persist : undefined}
+        onInput={persistsDraft || keepFields !== undefined ? persist : undefined}
+        onReset={keepFields !== undefined ? restoreKept : undefined}
       >
         <div aria-live="polite" className="form-status">
           {result.status === 'error' ? (
