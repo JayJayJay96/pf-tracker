@@ -204,7 +204,10 @@ describe('spending by category', () => {
     expect(markup).toContain('Excludes 1 unresolved shared bill');
   });
 
-  it('names uncategorised spending instead of dropping it', () => {
+  it('names a shared bill as one rather than calling it uncategorised', () => {
+    // The schema forbids a category on a shared bill, so calling this slice
+    // "Uncategorised" blamed the owner for something they cannot do - and it led
+    // the chart at 81% of spending the first time the app was used for a month.
     const markup = withTransactions([
       transaction({
         categoryName: null,
@@ -215,8 +218,18 @@ describe('spending by category', () => {
       }),
     ]);
 
-    expect(markup).toContain('Uncategorised');
+    expect(markup).toContain('Shared bills');
+    expect(markup).not.toContain('Uncategorised');
     expect(markup).toContain('Total RM40.00');
+  });
+
+  it('still says uncategorised for a personal expense with no category', () => {
+    const markup = withTransactions([
+      transaction({ categoryName: null, amountSen: 2500 }),
+    ]);
+
+    expect(markup).toContain('Uncategorised');
+    expect(markup).not.toContain('Shared bills');
   });
 
   it('says nothing is categorised rather than drawing an empty chart', () => {

@@ -35,7 +35,7 @@ test('removes a friend added by mistake, but not one already on a bill', async (
   const bill = page.getByRole('listitem').filter({ hasText: 'Lunch with Alex' });
   await bill.getByLabel('Alex', { exact: true }).check();
   await bill.getByRole('button', { name: 'Split evenly' }).click();
-  await expect(bill).toContainText('Resolved');
+  await expect(bill).toContainText('your share is');
 
   const alex = page.getByRole('listitem').filter({ hasText: 'Alex' }).first();
   await alex.getByRole('button', { name: 'Remove Alex' }).click();
@@ -106,7 +106,8 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   await billForm.getByRole('button', { name: 'Save unresolved bill' }).click();
 
   const bill = page.getByRole('listitem').filter({ hasText: 'Shared lunch' });
-  await expect(bill).toContainText('Unresolved');
+  // "Unresolved - personal spending is not final yet" was the data model talking.
+  await expect(bill).toContainText('Not split yet');
   await expect(bill).toContainText('RM18.00 cash outflow');
 
   await page.goto('/?month=2026-07');
@@ -155,16 +156,16 @@ test('moves a shared bill from unresolved cash outflow to exact portions', async
   await unresolvedBill.getByLabel('Adjustment 5 amount').fill('-0.01');
   await unresolvedBill.getByLabel('Adjustment 5 distribution').selectOption('user');
 
-  const review = unresolvedBill.getByRole('region', { name: 'Allocation review' });
+  const review = unresolvedBill.getByRole('region', { name: 'Check the split' });
   await expect(review).toContainText('You: RM6.95');
   await expect(review).toContainText('Alex: RM7.24');
   await expect(review).toContainText('Bee: RM3.81');
-  await unresolvedBill.getByLabel('Confirm reviewed allocation').check();
-  await unresolvedBill.getByRole('button', { name: 'Resolve shared bill' }).click();
+  await unresolvedBill.getByLabel('These amounts look right').check();
+  await unresolvedBill.getByRole('button', { name: 'Save this split' }).click();
 
   const resolvedBill = page.getByRole('listitem').filter({ hasText: 'Shared lunch' });
-  await expect(resolvedBill).toContainText('Resolved');
-  await expect(resolvedBill).toContainText('your portion RM6.95');
+  await expect(resolvedBill).toContainText('your share is');
+  await expect(resolvedBill).toContainText('your share is RM6.95');
   await expect(resolvedBill).toContainText('Alex owes RM7.24');
   await expect(resolvedBill).toContainText('Bee owes RM3.81');
 

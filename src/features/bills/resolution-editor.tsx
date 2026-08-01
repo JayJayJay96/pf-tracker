@@ -381,7 +381,7 @@ export function ResolutionEditor({
       */}
       <section aria-labelledby={`review-${billId}`} className={GROUP}>
         <h3 className="text-sm font-semibold text-ink-muted" id={`review-${billId}`}>
-          Allocation review
+          Check the split
         </h3>
         {review.error ? (
           <p className="text-sm font-bold text-negative" role="alert">{review.error}</p>
@@ -402,7 +402,7 @@ export function ResolutionEditor({
             disabled={Boolean(review.error)}
             onChange={(event) => setConfirmed(event.target.checked)}
           />
-          Confirm reviewed allocation
+          These amounts look right
         </label>
       </section>
       <input
@@ -415,7 +415,7 @@ export function ResolutionEditor({
         type="submit"
         disabled={Boolean(review.error) || !confirmed}
       >
-        Resolve shared bill
+        Save this split
       </button>
     </ActionForm>
   );

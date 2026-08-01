@@ -40,29 +40,45 @@ function balanceRows(friend: FriendBalance) {
 export function FriendsView({ friends }: { friends: FriendBalance[] }) {
   return (
     <PageShell title="Friends">
-      <Section id="friends" title="Ledgers">
+      {/*
+        One friend used to be six figures - outstanding, unrequested, requested,
+        paid, forgiven, pending requests - five of them RM0.00, for someone who
+        simply owed RM90. The question this screen answers is "who owes me, and how
+        much", so that comes first and the breakdown is on the friend's own page.
+      */}
+      <Section id="friends" title="Who owes you">
         {friends.length === 0 ? (
-          <Empty>Add and allocate a friend on Shared Bills to start a ledger.</Empty>
+          <Empty>Split a bill on Shared Bills and the friend will appear here.</Empty>
         ) : (
           <RecordList>
             {friends.map((friend) => (
               <Record key={friend.id}>
-                <Link className={LINK_CLASS} href={`/friends/${friend.id}`}>
-                  <strong>{friend.name}</strong>
-                </Link>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <Link className={LINK_CLASS} href={`/friends/${friend.id}`}>
+                    <strong>{friend.name}</strong>
+                  </Link>
+                  <span
+                    className={`font-semibold tabular-nums ${
+                      friend.outstandingSen > 0 ? 'text-warning' : 'text-ink-muted'
+                    }`}
+                  >
+                    {friend.outstandingSen > 0
+                      ? `owes ${formatMoney(friend.outstandingSen)}`
+                      : 'settled up'}
+                  </span>
+                </div>
+                {/* Only the parts that are actually happening. */}
                 <p className="text-sm text-ink-muted">
-                  {formatMoney(friend.outstandingSen)} outstanding
-                  {' · '}
-                  {formatMoney(friend.unrequestedSen)} unrequested
-                  {' · '}
-                  {formatMoney(friend.requestedSen)} requested
-                </p>
-                <p className="text-sm text-ink-muted">
-                  {formatMoney(friend.paidSen)} paid
-                  {' · '}
-                  {formatMoney(friend.forgivenSen)} forgiven
-                  {' · '}
-                  {friend.pendingRequestCount} pending requests
+                  {[
+                    friend.unrequestedSen > 0
+                      && `${formatMoney(friend.unrequestedSen)} not asked for yet`,
+                    friend.requestedSen > 0
+                      && `${formatMoney(friend.requestedSen)} asked for`,
+                    friend.paidSen > 0 && `${formatMoney(friend.paidSen)} paid back`,
+                    friend.forgivenSen > 0
+                      && `${formatMoney(friend.forgivenSen)} written off`,
+                  ].filter((part): part is string => Boolean(part)).join(' · ')
+                    || 'Nothing outstanding.'}
                 </p>
               </Record>
             ))}

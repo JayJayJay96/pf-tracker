@@ -19,7 +19,8 @@ test('snapshots two bills, leaves a later bill unrequested, and settles without 
 
   await page.goto('/friends');
   await expect(page.getByRole('listitem').filter({ hasText: 'Alex' }))
-    .toContainText('RM15.00 outstanding');
+    // The friends screen leads with the answer now, not six equal figures.
+    .toContainText('owes RM15.00');
   await page.getByRole('link', { name: 'Alex' }).click();
 
   const requestForm = page
@@ -49,7 +50,7 @@ test('snapshots two bills, leaves a later bill unrequested, and settles without 
 
   await page.goto('/friends');
   await expect(page.getByRole('listitem').filter({ hasText: 'Alex' }))
-    .toContainText('RM19.00 outstanding');
+    .toContainText('owes RM19.00');
   await page.goto(requestUrl);
 
   const paidForm = page.getByRole('button', { name: 'Mark paid in full' })
@@ -61,8 +62,8 @@ test('snapshots two bills, leaves a later bill unrequested, and settles without 
 
   await page.goto('/friends');
   const alex = page.getByRole('listitem').filter({ hasText: 'Alex' });
-  await expect(alex).toContainText('RM4.00 outstanding');
-  await expect(alex).toContainText('RM15.00 paid');
+  await expect(alex).toContainText('owes RM4.00');
+  await expect(alex).toContainText('RM15.00 paid back');
 
   await page.goto('/?month=2026-07');
   const totals = page.getByRole('region', { name: 'Month totals' });
@@ -94,5 +95,5 @@ async function createAndResolveBill(
   // "Include Alex" and "Item 1 assign Alex".
   await bill.getByLabel('Alex', { exact: true }).check();
   await bill.getByRole('button', { name: 'Split evenly' }).click();
-  await expect(bill).toContainText('Resolved');
+  await expect(bill).toContainText('your share is');
 }

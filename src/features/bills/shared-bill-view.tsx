@@ -141,9 +141,14 @@ export function SharedBillView({
                   <time dateTime={bill.transactionDate}>
                     {displayDate(bill.transactionDate)}
                   </time>
+                  {/*
+                    Plain words. "Unresolved - personal spending is not final yet"
+                    is how the data model describes itself, not how anyone would
+                    describe a dinner they have not divided up yet.
+                  */}
                   {bill.status === 'unresolved'
-                    ? ' · Unresolved — personal spending is not final yet.'
-                    : ` · Resolved — your portion ${formatMoney(bill.userPortionSen)}`}
+                    ? ' · Not split yet, so your share is not counted yet.'
+                    : ` · Split — your share is ${formatMoney(bill.userPortionSen)}`}
                 </p>
 
                 {bill.status === 'unresolved' ? (

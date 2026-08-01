@@ -337,7 +337,7 @@ export function MonthlyPlanView({
         </ActionForm>
       </Section>
 
-      <Section id="allocations" title="Other monthly allocations">
+      <Section id="allocations" title="Savings and investments">
         <TemplateList
           templates={otherTemplates}
           emptyMessage="No savings or investment allocations yet."
@@ -386,9 +386,10 @@ export function MonthlyPlanView({
         </Disclosure>
       </Section>
 
-      <Section id="snapshots" title={`Generated monthly entries for ${label}`}>
+      {/* "Generated monthly entries" described the mechanism; this is the plan. */}
+      <Section id="snapshots" title={`What ${label} looks like`}>
         {entries.length === 0 ? (
-          <Empty>No generated entries for {label}.</Empty>
+          <Empty>Nothing is planned for {label} yet.</Empty>
         ) : (
           <RecordList>
             {entries.map((entry) => (

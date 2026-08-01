@@ -39,7 +39,7 @@ async function addRecurring(page: Page, input: {
 
 function entryRow(page: Page, name: string) {
   return page
-    .getByRole('region', { name: /^Generated monthly entries for/ })
+    .getByRole('region', { name: /^What .+ looks like$/ })
     .locator('li')
     .filter({ has: page.getByText(name, { exact: true }) });
 }

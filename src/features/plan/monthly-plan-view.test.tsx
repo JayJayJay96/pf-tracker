@@ -53,12 +53,12 @@ describe('monthly plan view', () => {
     expect(page).toContain('Income &amp; Commitments');
     expect(page).toContain('Recurring income');
     expect(page).toContain('Recurring commitments');
-    expect(page).toContain('Other monthly allocations');
+    expect(page).toContain('Savings and investments');
     expect(page.indexOf('Recurring income')).toBeLessThan(
       page.indexOf('Recurring commitments'),
     );
     expect(page.indexOf('Recurring commitments')).toBeLessThan(
-      page.indexOf('Generated monthly entries'),
+      page.indexOf('What July 2026 looks like'),
     );
     expect(page).toContain('These fixed items carry forward into future months.');
     expect(page).toContain('RM5,000.00');
@@ -67,7 +67,7 @@ describe('monthly plan view', () => {
     expect(page).toContain('Actual RM5,250.50');
     expect(page).toContain('Update actual');
     expect(page).toContain('Final KPI amount');
-    expect(page).toContain('Generated monthly entries for July 2026');
+    expect(page).toContain('What July 2026 looks like');
     expect(page).not.toContain('Template edits apply only to months generated afterward.');
     expect(page).toContain('Archive');
   });
@@ -79,6 +79,6 @@ describe('monthly plan view', () => {
 
     expect(page).toContain('No recurring income yet.');
     expect(page).toContain('No recurring commitments yet.');
-    expect(page).toContain('No generated entries for July 2026.');
+    expect(page).toContain('Nothing is planned for July 2026 yet.');
   });
 });

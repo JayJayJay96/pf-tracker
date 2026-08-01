@@ -24,14 +24,50 @@ const friend = {
 };
 
 describe('friends screens', () => {
-  it('shows outstanding and lifecycle totals per friend', () => {
+  it('leads with what the friend owes, then how it breaks down', () => {
     const html = renderToStaticMarkup(<FriendsView friends={[friend]} />);
 
     expect(html).toContain('Alex');
-    expect(html).toContain('RM80.40 outstanding');
-    expect(html).toContain('RM62.40 unrequested');
-    expect(html).toContain('RM18.00 requested');
-    expect(html).toContain('RM20.00 paid');
+    // The answer first, in words, rather than as one of six equal figures.
+    expect(html).toContain('owes RM80.40');
+    expect(html).toContain('RM62.40 not asked for yet');
+    expect(html).toContain('RM18.00 asked for');
+    expect(html).toContain('RM20.00 paid back');
+    expect(html).toContain('RM5.00 written off');
+  });
+
+  it('omits the parts that are not happening rather than printing zeroes', () => {
+    const html = renderToStaticMarkup(<FriendsView friends={[{
+      ...friend,
+      unrequestedSen: 9_000,
+      requestedSen: 0,
+      paidSen: 0,
+      forgivenSen: 0,
+      outstandingSen: 9_000,
+      collectedSen: 0,
+      pendingRequestCount: 0,
+    }]} />);
+
+    expect(html).toContain('owes RM90.00');
+    expect(html).toContain('RM90.00 not asked for yet');
+    expect(html).not.toContain('paid back');
+    expect(html).not.toContain('written off');
+  });
+
+  it('says so plainly when a friend is square with you', () => {
+    const html = renderToStaticMarkup(<FriendsView friends={[{
+      ...friend,
+      unrequestedSen: 0,
+      requestedSen: 0,
+      paidSen: 9_000,
+      forgivenSen: 0,
+      outstandingSen: 0,
+      collectedSen: 9_000,
+      pendingRequestCount: 0,
+    }]} />);
+
+    expect(html).toContain('settled up');
+    expect(html).not.toContain('owes RM');
   });
 
   it('offers only unrequested ledger portions for a lump-sum request', () => {

@@ -72,8 +72,17 @@ function spendingByCategory(transactions: ReportResult['transactions']): {
       ? transaction.userPortionSen
       : transaction.amountSen;
     if (amountSen <= 0) continue;
-    // Shared bills carry no category, so they would otherwise vanish silently.
-    const name = transaction.categoryName ?? 'Uncategorised';
+    /*
+     * A shared bill is named as one rather than called uncategorised, which was
+     * misleading: a month of real use put "Uncategorised" at the top of this
+     * chart holding 81% of the spending, as though the owner had been careless.
+     * They had not - the schema forbids a category on a shared bill
+     * (`transaction_type = 'shared_expense' and category_id is null`), because
+     * only part of the bill is theirs and the detail belongs to its items. So the
+     * slice says what it actually is.
+     */
+    const name = transaction.categoryName
+      ?? (transaction.type === 'shared_expense' ? 'Shared bills' : 'Uncategorised');
     totals.set(name, (totals.get(name) ?? 0) + amountSen);
   }
 
