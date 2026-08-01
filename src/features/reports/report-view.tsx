@@ -7,15 +7,14 @@ import {
   DataTable,
   Disclosure,
   Empty,
-  Field,
   Figures,
-  FilterForm,
   PageShell,
   Record,
   RecordList,
   Section,
 } from '../ui/page';
 import type { ReportPeriodInput, ReportResult } from './queries';
+import { RangePicker } from './range-picker';
 
 const LINK_CLASS = 'text-accent underline';
 
@@ -176,53 +175,7 @@ export function ReportView({
       title={`${report.period.label} report`}
     >
       <Section id="range" title="Report range">
-        <FilterForm>
-          <Field label="Range">
-            <select name="range" defaultValue={selection.kind}>
-              <option value="month">Specific month</option>
-              <option value="custom">Custom date range</option>
-              <option value="ytd">Year to date</option>
-              <option value="year">Specific year</option>
-            </select>
-          </Field>
-          <Field label="Month">
-            <input
-              name="month"
-              type="month"
-              defaultValue={selection.kind === 'month' ? selection.month : today.slice(0, 7)}
-            />
-          </Field>
-          <Field label="From">
-            <input
-              name="from"
-              type="date"
-              defaultValue={selection.kind === 'custom' ? selection.from : today}
-            />
-          </Field>
-          <Field label="To">
-            <input
-              name="to"
-              type="date"
-              defaultValue={selection.kind === 'custom' ? selection.to : today}
-            />
-          </Field>
-          <Field label="Year">
-            <input
-              name="year"
-              type="number"
-              inputMode="numeric"
-              min="2000"
-              max="9999"
-              defaultValue={'year' in selection ? selection.year : today.slice(0, 4)}
-            />
-          </Field>
-          <button
-            className="justify-self-start rounded-lg border border-hairline bg-transparent px-4 py-2.5 text-ink hover:border-hairline-strong"
-            type="submit"
-          >
-            View report
-          </button>
-        </FilterForm>
+        <RangePicker selection={selection} today={today} />
       </Section>
 
       <Section id="summary" title="Financial summary">

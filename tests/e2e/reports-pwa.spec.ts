@@ -52,6 +52,55 @@ test('restores an owner draft, reports by transaction date, and exports privatel
   expect(registrations).toBe(0);
 });
 
+test('asks only for the dates the chosen range actually uses', async ({ page, request }) => {
+  await signIn(page, request, 'report-range');
+  await page.goto('/reports?range=month&month=2026-07');
+
+  const range = page.getByRole('region', { name: 'Report range' });
+  /*
+   * Exact labels throughout, because the Range select's accessible name is
+   * currently "RangeSpecific monthCustom date range..." - Field nests the control
+   * inside its label, so a select's name absorbs every option. That is a real
+   * defect, tracked separately; matching exactly keeps this test about the range
+   * picker instead of quietly depending on the bug.
+   */
+  const field = (label: string) => range.getByLabel(label, { exact: true });
+  /*
+   * By role, not by label: the Range select cannot be found by its visible label
+   * at all, because its accessible name is the label plus every option. It is the
+   * only select in this form, so the role is unambiguous - and when the defect is
+   * fixed, `field('Range')` will work here.
+   */
+  const rangeSelect = range.getByRole('combobox');
+
+  // A month needs a month. From, To and Year used to sit here too, with nothing
+  // to say that the server ignores them.
+  await expect(field('Month')).toBeVisible();
+  await expect(field('From')).toHaveCount(0);
+  await expect(field('To')).toHaveCount(0);
+  await expect(field('Year')).toHaveCount(0);
+
+  await rangeSelect.selectOption('custom');
+  await expect(field('From')).toBeVisible();
+  await expect(field('To')).toBeVisible();
+  await expect(field('Month')).toHaveCount(0);
+
+  await rangeSelect.selectOption('year');
+  await expect(field('Year')).toBeVisible();
+  await expect(field('From')).toHaveCount(0);
+
+  // Year to date needs nothing, so it explains itself instead of showing gaps.
+  await rangeSelect.selectOption('ytd');
+  await expect(field('Year')).toHaveCount(0);
+  await expect(range).toContainText('until today');
+
+  // And the chosen range still reaches the server.
+  await rangeSelect.selectOption('month');
+  await field('Month').fill('2026-06');
+  await range.getByRole('button', { name: 'View report' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('June 2026');
+});
+
 test('serves install metadata and icons without authentication', async ({ request }) => {
   const manifest = await request.get('/manifest.webmanifest');
   expect(manifest.ok()).toBe(true);
