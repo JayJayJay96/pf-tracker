@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 
 /**
  * Layout primitives for the authenticated screens.
@@ -69,14 +69,33 @@ export function Section({
  * A labelled control. The control nests inside the label, so it is named without
  * needing an id, and nothing else may go in here: a hint placed inside a label
  * becomes part of the control's accessible name.
+ *
+ * The control is also given the label as an explicit name, which matters for a
+ * select. A control inside a label takes its name from the label's text, and a
+ * select's text is every one of its options - so the reports Range field
+ * announced itself as "RangeSpecific monthCustom date rangeYear to dateSpecific
+ * year", Category read as the whole list of categories, and neither could be
+ * found by its own label at all. Naming the control directly settles it in one
+ * place. For an input the name is unchanged, being the same words either way.
+ *
+ * Done by cloning rather than with a generated id and `htmlFor`, because an id
+ * needs `useId`, which would make this a client component; cloning server-side
+ * has no client half to disagree with.
  */
 export function Field({ label, children }: { label: string; children: ReactNode }) {
+  const control = isValidElement(children) && typeof children.type === 'string'
+    ? cloneElement(children as ReactElement<{ 'aria-label'?: string }>, {
+      // A control that already names itself keeps that name.
+      'aria-label': (children.props as { 'aria-label'?: string })['aria-label'] ?? label,
+    })
+    : children;
+
   return (
     // min-w-0 because a grid item will not shrink below its own content by
     // default, which let a native date picker push this field past its panel.
     <label className="grid min-w-0 gap-1.5">
       <span className="text-sm text-ink-muted">{label}</span>
-      {children}
+      {control}
     </label>
   );
 }

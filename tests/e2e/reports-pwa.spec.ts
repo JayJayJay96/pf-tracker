@@ -64,14 +64,15 @@ test('asks only for the dates the chosen range actually uses', async ({ page, re
    * defect, tracked separately; matching exactly keeps this test about the range
    * picker instead of quietly depending on the bug.
    */
-  const field = (label: string) => range.getByLabel(label, { exact: true });
   /*
-   * By role, not by label: the Range select cannot be found by its visible label
-   * at all, because its accessible name is the label plus every option. It is the
-   * only select in this form, so the role is unambiguous - and when the defect is
-   * fixed, `field('Range')` will work here.
+   * Exact labels throughout, the select included. That is the point: a select used
+   * to be named by its label *plus every option* - "RangeSpecific monthCustom
+   * date range..." - so it could not be found by its own label at all. The label
+   * now points at the control by id, so this locator working is the evidence that
+   * a screen reader announces "Range" and nothing more.
    */
-  const rangeSelect = range.getByRole('combobox');
+  const field = (label: string) => range.getByLabel(label, { exact: true });
+  const rangeSelect = field('Range');
 
   // A month needs a month. From, To and Year used to sit here too, with nothing
   // to say that the server ignores them.
