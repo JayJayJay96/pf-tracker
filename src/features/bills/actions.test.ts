@@ -128,6 +128,17 @@ describe('deleting a shared bill', () => {
     }), 'user-a', 'bill-1')).rejects.toThrow(/already been requested from a friend/);
   });
 
+  it('explains that a split bill is locked rather than quoting the trigger', async () => {
+    // The database keeps a resolved bill immutable on purpose. That is a rule to
+    // state, not a failure to report, and "resolved shared bills are immutable"
+    // is the trigger talking to a developer.
+    await expect(deleteSharedBill(repository({
+      deleteBill: async () => ({
+        error: { message: 'resolved shared bills are immutable', code: '55000' },
+      }),
+    }), 'user-a', 'bill-1')).rejects.toThrow(/already been split/);
+  });
+
   it('passes any other failure through rather than dressing it up', async () => {
     await expect(deleteSharedBill(repository({
       deleteBill: async () => ({ error: { message: 'connection lost' } }),

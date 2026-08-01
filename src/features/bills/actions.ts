@@ -187,6 +187,11 @@ export async function createUnresolvedBill(
 
 /** Postgres foreign key violation. */
 const FOREIGN_KEY_VIOLATION = '23503';
+/**
+ * Raised by the triggers keeping a resolved bill and its split immutable:
+ * `prevent_resolved_shared_bill_change` and `prevent_resolved_allocation_change`.
+ */
+const IMMUTABLE_RECORD = '55000';
 
 /**
  * Removes a shared bill and everything the bill itself owns.
@@ -214,6 +219,17 @@ export async function deleteSharedBill(
     throw new Error(
       'This bill has already been requested from a friend, so deleting it would '
       + 'lose a record of what they owe. Cancel the payment request first.',
+    );
+  }
+  /*
+   * A split bill is locked by the database on purpose, so deleting one is not a
+   * failure to report as such - it is a rule, and the reader needs to know the
+   * rule rather than read the trigger's own words.
+   */
+  if (error.code === IMMUTABLE_RECORD) {
+    throw new Error(
+      'This bill has already been split, and a split cannot be changed or removed '
+      + 'once made. Only a bill that is not split yet can be deleted.',
     );
   }
   throw new Error(error.message);
